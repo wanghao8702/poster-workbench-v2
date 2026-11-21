@@ -259,3 +259,18 @@ textarea:focus{border-color:var(--green);outline:0}
 .tf-photo-error{margin:6px 0 0;font-size:11px;color:#8a3226}
 .tf-add{margin-top:10px}
 @media(max-width:620px){.tf-grid{grid-template-columns:1fr 1fr}.tf-speaker-body{flex-direction:column}.tf-photo{flex-direction:row;width:auto}}
+
+/* ---------- API settings & generation notices ---------- */
+.key-panel{max-height:calc(100vh - var(--top) - 24px);overflow:auto;z-index:20}
+.key-group{border:1px solid var(--line);border-radius:6px;padding:10px 12px 12px;margin:6px 0 0;display:flex;flex-direction:column;gap:4px;min-width:0}
+.key-group legend{font-size:12px;padding:0 6px;color:var(--ink)}
+.key-group .size-select{padding:7px 9px;font-size:12px}
+.provider-row{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px}
+.provider-row label{display:inline-flex;align-items:center;gap:6px;margin:0;font-size:12px;cursor:pointer}
+.qwen-fields{display:flex;flex-direction:column;gap:4px}
+.qwen-fields[hidden],.key-hint[hidden]{display:none}
+.key-hint{font-size:11px;color:var(--muted);margin:6px 0 0}
+.prompt-stale{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px;padding:7px 10px;border-radius:4px;background:#fbf3d9;color:#6b5414;font-size:11px;line-height:1.5}
+.prompt-stale[hidden],.portrait-warning[hidden]{display:none}
+.prompt-stale .quiet{flex:none;color:#6b5414;font-weight:500;padding:4px 8px;background:#f3e4b5}
+.portrait-warning{margin:0;padding:7px 10px;border-radius:4px;background:#fbf3d9;color:#6b5414;font-size:11px;line-height:1.5}

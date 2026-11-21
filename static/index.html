@@ -17,10 +17,25 @@
     <button id="settings" class="quiet" aria-expanded="false" aria-controls="key-panel">API 设置 <span id="key-dot" class="key-dot"></span></button>
   </div>
   <section id="key-panel" class="key-panel" hidden>
-    <h2>连接你的 MaaS API</h2>
-    <p>填入你自己的蚂蚁数科 MaaS API Key。仅在当前页面保留，刷新后需要重新填写。调用时通过本站转发给 MaaS。</p>
-    <label for="api-key">API key</label>
-    <div class="key-input"><input id="api-key" type="password" autocomplete="off" placeholder="粘贴你的 MaaS API Key" spellcheck="false"><button id="show-key" aria-label="显示 API key" class="quiet">显示</button></div>
+    <h2>API 设置</h2>
+    <p id="key-note">Key 仅保留在当前页面，刷新后需要重新填写。调用时由本机服务转发给你选择的模型服务。</p>
+    <fieldset class="key-group"><legend>生图接口</legend>
+      <div class="provider-row">
+        <label><input type="radio" name="gen-provider" value="qwen" checked> 千问 · 支持讲师肖像</label>
+        <label><input type="radio" name="gen-provider" value="maas"> MaaS</label>
+      </div>
+      <div id="qwen-fields" class="qwen-fields">
+        <label for="qwen-key">千问 API Key</label>
+        <div class="key-input"><input id="qwen-key" type="password" autocomplete="off" placeholder="粘贴阿里云百炼 API Key" spellcheck="false"><button type="button" class="quiet" data-reveal="qwen-key" aria-label="显示千问 API key">显示</button></div>
+        <label for="qwen-model">模型</label><input id="qwen-model" class="size-select" value="qwen-image-3.0-pro" spellcheck="false" autocomplete="off">
+        <label for="qwen-base-url">Base URL</label><input id="qwen-base-url" class="size-select" value="https://dashscope.aliyuncs.com/api/v1" spellcheck="false" autocomplete="off">
+      </div>
+      <p id="maas-gen-note" class="key-hint" hidden>MaaS 生图使用下方拆层 Key，不支持讲师肖像参考。</p>
+    </fieldset>
+    <fieldset class="key-group"><legend>拆层接口 · MaaS</legend>
+      <label for="api-key">MaaS API Key</label>
+      <div class="key-input"><input id="api-key" type="password" autocomplete="off" placeholder="粘贴蚂蚁数科 MaaS API Key" spellcheck="false"><button type="button" class="quiet" data-reveal="api-key" aria-label="显示 MaaS API key">显示</button></div>
+    </fieldset>
     <div class="key-actions"><button id="clear-key" class="quiet">清除 Key</button><button id="save-key" class="primary">完成</button></div>
   </section>
 </header>
@@ -46,6 +61,7 @@
       <section id="prompt-details" class="prompt-details">
 
         <div class="prompt-heading"><label id="prompt-label" for="generate-prompt">画面描述</label><span id="prompt-count">0 字</span></div>
+        <div id="prompt-stale" class="prompt-stale" role="status" hidden><span>生图设置已变，提示词中的讲师肖像 / 比例描述可能不再准确。</span><button type="button" id="recompile-prompt" class="quiet">重新拼装</button></div>
         <div id="creative-presets" class="preset-row" hidden><button data-creative="landscape" class="chip">实例：湖畔晨光</button><button data-creative="illustration" class="chip">实例：橘猫咖啡店</button></div>
         <textarea id="cover-prompt" class="category-prompt" maxlength="16000" placeholder="输入封面提示词，或点上方「风格与标题设置」选择风格。" hidden></textarea>
         <textarea id="free-prompt" class="category-prompt" maxlength="16000" placeholder="直接输入你想生成的画面，也可以载入上面的实例。" hidden></textarea>
@@ -59,6 +75,7 @@
         <option value="3:4">3:4 · 竖版</option>
       </select>
       </div>
+      <p id="portrait-warning" class="portrait-warning" role="status" hidden>当前生图接口不支持肖像参考，讲师将以虚构形象绘制。</p>
       <button id="generate" class="primary action">生成图片 <span>↗</span></button>
       </div>
     </div>

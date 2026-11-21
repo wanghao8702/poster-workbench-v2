@@ -26,8 +26,29 @@ let dialogSnapshot=null;
 function promptEditor(){return $(PROMPT_IDS[purpose]);}
 function editorOf(category){return $(PROMPT_IDS[category]);}
 function ratioOf(category){return category===purpose?$('generate-ratio').value:(ratioDrafts[category]||PURPOSE_RATIO[category]);}
-// Replaced by the API settings panel; until then generation defaults to Qwen.
-function genSettings(){return {provider:'qwen',model:'qwen-image-3.0-pro',baseUrl:'https://dashscope.aliyuncs.com/api/v1',maxRefImages:3};}
+const GEN_STORE='poster-v2-gen';
+const QWEN_DEFAULTS={model:'qwen-image-3.0-pro',baseUrl:'https://dashscope.aliyuncs.com/api/v1'};
+const MAAS_GEN_MODEL='ming-image-0.1-design';
+const staleCategories=new Set();
+function genSettings(){
+ const provider=document.querySelector('input[name="gen-provider"]:checked')?.value==='maas'?'maas':'qwen';
+ const model=provider==='qwen'?($('qwen-model').value.trim()||QWEN_DEFAULTS.model):MAAS_GEN_MODEL;
+ const baseUrl=$('qwen-base-url').value.trim()||QWEN_DEFAULTS.baseUrl;
+ return {provider,model,baseUrl,maxRefImages:provider==='qwen'?(/qwen-image-2\.1/i.test(model)?10:3):0};
+}
+{
+ // Provider, model and Base URL are remembered; keys never are.
+ let saved=null;try{saved=JSON.parse(localStorage.getItem(GEN_STORE)||'null');}catch{}
+ if(saved&&typeof saved==='object'){
+  const radio=document.querySelector(`input[name="gen-provider"][value="${saved.provider==='maas'?'maas':'qwen'}"]`);if(radio)radio.checked=true;
+  if(typeof saved.model==='string'&&saved.model.trim())$('qwen-model').value=saved.model;
+  if(typeof saved.baseUrl==='string'&&saved.baseUrl.trim())$('qwen-base-url').value=saved.baseUrl;
+ }
+}
+function rememberGenSettings(){
+ const radio=document.querySelector('input[name="gen-provider"]:checked');
+ try{localStorage.setItem(GEN_STORE,JSON.stringify({provider:radio?radio.value:'qwen',model:$('qwen-model').value.trim(),baseUrl:$('qwen-base-url').value.trim()}));}catch{}
+}
 function currentStyle(){
  const [source,id]=$('style-select').value.split(':');
  if(source==='punk'){const style=punkStyles.find(item=>item.id===id);return style?{source,id,style}:null;}
@@ -52,8 +73,47 @@ function applyCompiled(category,result){
  if(result.prompt.length>16000)throw new Error('提示词超过 16000 字，请精简课程内容或讲师资历。');
  editorOf(category).value=result.prompt;
  lastCompiled[category]={prompt:result.prompt,...result.stamp};
+ staleCategories.delete(category);
  if(category===purpose){countPrompt();updateStyleUI();}
+ updateGenUI();
 }
+/* Only the settings that change a category's prompt count: the cover prompt ignores the provider. */
+function stampMatches(category,stamp,gen){
+ if(stamp.ratio!==ratioOf(category))return false;
+ return category==='cover'||(stamp.provider===gen.provider&&stamp.maxRefImages===gen.maxRefImages);
+}
+function resyncPrompts(){
+ const gen=genSettings();
+ for(const category of ['cover','training']){
+  const stamp=lastCompiled[category];
+  if(!stamp||stampMatches(category,stamp,gen))continue;
+  if(isHandEdited(editorOf(category).value,stamp.prompt))staleCategories.add(category);
+  else silentCompile(category);
+ }
+ updateGenUI();
+}
+function updateGenUI(){
+ const gen=genSettings();
+ TrainingForm.setRefLimit(gen);
+ $('prompt-stale').hidden=!staleCategories.has(purpose);
+ $('portrait-warning').hidden=!(purpose==='training'&&gen.provider!=='qwen'&&TrainingForm.photoCount()>0);
+ $('qwen-fields').hidden=gen.provider!=='qwen';$('maas-gen-note').hidden=gen.provider==='qwen';
+ if(mode==='generate')$('model-name').textContent=gen.model;
+ keyState();
+}
+function recompileCurrent(){
+ const category=purpose;
+ let result;
+ try{result=compileFor(category);}catch(e){notify(e.message,true);return;}
+ if(!result){staleCategories.delete(category);updateGenUI();return;}
+ if(isHandEdited(editorOf(category).value,lastCompiled[category]?.prompt)&&!confirm('将覆盖你对提示词的手动修改，确定吗？'))return;
+ try{applyCompiled(category,result);}catch(e){notify(e.message,true);}
+}
+$('recompile-prompt').onclick=recompileCurrent;
+for(const radio of document.querySelectorAll('input[name="gen-provider"]'))radio.onchange=()=>{rememberGenSettings();resyncPrompts();};
+$('qwen-model').onchange=()=>{rememberGenSettings();resyncPrompts();};
+$('qwen-base-url').onchange=rememberGenSettings;
+
 function silentCompile(category){
  try{const result=compileFor(category);if(result)applyCompiled(category,result);}catch(e){}
 }
@@ -105,7 +165,7 @@ function closeSettings(save){
  else TrainingForm.restore(saved.data);
  dialogSnapshot=null;
  $('settings-summary').textContent=settingsSummary(category);
- updateStyleUI();
+ updateStyleUI();updateGenUI();
  dialog.close();
 }
 $('open-settings').onclick=openSettings;
@@ -121,14 +181,14 @@ for(const chip of document.querySelectorAll('[data-purpose]'))chip.onclick=()=>{
  setPurpose(next);
  $('generate-ratio').value=ratioDrafts[next]||PURPOSE_RATIO[next];
  if(next==='training'&&!editorOf('training').value.trim())silentCompile('training');
- updateStyleUI();countPrompt();
+ updateStyleUI();countPrompt();updateGenUI();
 };
 const creativeExamples={
  landscape:'生成一张唯美的摄影作品：清晨的湖畔，一座木屋与远山倒映在平静水面，薄雾缓缓升起，柔和的金色晨光穿过松林。画面真实、安静、细腻，有自然的空间层次与电影摄影质感。不添加文字、标志或水印。',
  illustration:'绘制一幅温暖的童话插画：一只橘猫在雨后的森林里经营一间小小的咖啡店，蘑菇屋、木质窗台、热咖啡和微微发光的灯串。手绘水彩与彩铅质感，苔藓绿、奶油黄和暖橘色，主体清晰，细节丰富但不拥挤。不添加文字、标志或水印。'
 };
 for(const button of document.querySelectorAll('[data-creative]'))button.onclick=()=>{promptEditor().value=creativeExamples[button.dataset.creative];countPrompt();promptEditor().focus();};
-$('generate-ratio').onchange=()=>{};
+$('generate-ratio').onchange=resyncPrompts;
 const splitPrompt = `请理解这张图片的实际内容、视觉层级和遮挡关系，将其拆分成可独立移动、缩放、隐藏和复用的 RGBA PNG 图层。
 
 【细分原则】
@@ -182,7 +242,7 @@ function setMode(next) {
   $(`tab-${kind}`).setAttribute('aria-selected', String(kind === next));
   $(kind === 'generate' ? 'generation-controls' : 'split-controls').hidden = kind !== next;
  }
- $('model-name').textContent = next === 'split' ? 'Ming-Image-0.1-Design-Layer' : 'Ming-Image-0.1-Design';
+ $('model-name').textContent = next === 'split' ? 'ming-image-0.1-design-layer' : genSettings().model;
 }
 function setFlow(step) {for (const n of [1,2,3]) $(`flow-${n}`).classList.toggle('on', n === step);}
 function notify(message, error = false) {
@@ -202,25 +262,36 @@ $('toggle-controls').onclick = () => showControls($('app').classList.contains('n
 function showKeyPanel(show) {
  $('key-panel').hidden = !show;
  $('settings').setAttribute('aria-expanded', String(show));
- if (show) $('api-key').focus();
+ if (show) (genSettings().provider==='qwen'&&!$('qwen-key').value.trim()?$('qwen-key'):$('api-key')).focus();
 }
-function needKey() {
- if ($('api-key').value.trim()) return true;
- showKeyPanel(true);
- notify('先填写你的 MaaS API key，即可开始创作。');
+function genKeyId(){return genSettings().provider==='qwen'?'qwen-key':'api-key';}
+function needKey(kind) {
+ const id=kind==='generate'?genKeyId():'api-key';
+ if ($(id).value.trim()) return true;
+ showKeyPanel(true);$(id).focus();
+ notify(id==='qwen-key'?'先填写千问 API Key，即可生成图片。':kind==='generate'?'先填写 MaaS API Key，即可生成图片。':'拆解图层需要 MaaS API Key，请先填写。',true);
  return false;
 }
-function keyState() {$('key-dot').classList.toggle('connected', !!$('api-key').value.trim());}
+function keyState() {
+ const ready=!!$(genKeyId()).value.trim()&&!!$('api-key').value.trim();
+ $('key-dot').classList.toggle('connected', ready);
+ $('settings').title=ready?'生图与拆层 Key 均已填写':'还有 Key 未填写';
+}
 $('settings').onclick = () => showKeyPanel($('key-panel').hidden);
 $('save-key').onclick = () => {keyState();showKeyPanel(false);};
-$('clear-key').onclick=()=>{$('api-key').value='';$('api-key').type='password';$('show-key').textContent='显示';$('show-key').setAttribute('aria-label','显示 API key');keyState();$('api-key').focus();};
-$('api-key').oninput = keyState;
-$('api-key').onkeydown = event => {if (event.key === 'Enter') {keyState();showKeyPanel(false);}};
-$('show-key').onclick = () => {
- const showing = $('api-key').type === 'password';
- $('api-key').type = showing ? 'text' : 'password';
- $('show-key').textContent = showing ? '隐藏' : '显示';
- $('show-key').setAttribute('aria-label', showing ? '隐藏 API key' : '显示 API key');
+function hideKeys(){
+ for(const button of document.querySelectorAll('[data-reveal]')){$(button.dataset.reveal).type='password';button.textContent='显示';button.setAttribute('aria-label',button.getAttribute('aria-label').replace('隐藏','显示'));}
+}
+$('clear-key').onclick=()=>{$('api-key').value='';$('qwen-key').value='';hideKeys();keyState();$(genKeyId()).focus();};
+for(const id of ['api-key','qwen-key']){
+ $(id).oninput = keyState;
+ $(id).onkeydown = event => {if (event.key === 'Enter') {keyState();showKeyPanel(false);}};
+}
+for(const button of document.querySelectorAll('[data-reveal]'))button.onclick=()=>{
+ const input=$(button.dataset.reveal),showing=input.type==='password';
+ input.type=showing?'text':'password';
+ button.textContent=showing?'隐藏':'显示';
+ button.setAttribute('aria-label',button.getAttribute('aria-label').replace(showing?'显示':'隐藏',showing?'隐藏':'显示'));
 };
 for (const kind of ['generate','split']) $(`tab-${kind}`).onclick = () => setMode(kind);
 for (const button of document.querySelectorAll('.tabbar button')) button.onkeydown = event => {
@@ -321,6 +392,19 @@ async function asDataURL(url) {
  const blob=await response.blob();return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
 }
 const delay = ms => new Promise(resolve=>setTimeout(resolve,ms));
+/* Build the /api/jobs body. Portraits are sent exactly for the speakers the training compiler marked as referenced. */
+function jobPayload(kind,prompt,ratio){
+ if(kind==='split')return {kind,prompt,key:$('api-key').value.trim(),ratio:'auto',provider:'maas'};
+ const gen=genSettings();
+ if(gen.provider!=='qwen')return {kind,prompt,key:$('api-key').value.trim(),ratio,provider:'maas'};
+ const payload={kind,prompt,key:$('qwen-key').value.trim(),ratio,provider:'qwen',model:gen.model,base_url:gen.baseUrl,purpose,references:[]};
+ if(purpose==='training'){
+  let indexes=[];
+  try{indexes=TrainingPoster.compile(TrainingForm.read(),{ratio,provider:gen.provider,maxRefImages:gen.maxRefImages}).references;}catch(e){}
+  payload.references=indexes.map(i=>TrainingForm.photo(i)).filter(Boolean).map(photo=>({name:photo.name,data:photo.dataUrl}));
+ }
+ return payload;
+}
 async function submit(kind) {
  if(busy)return;
  let prompt=(kind==='generate'?promptEditor():$('split-prompt')).value.trim();
@@ -329,12 +413,12 @@ async function submit(kind) {
  if(kind==='generate'&&OUTPUT_SIZES[ratio])prompt=`【画布比例】${ratio}（宽:高）。请按此比例安排完整构图，文字和主体保留安全边距。\n${prompt}`;
  if(prompt.length>16000){notify('提示词加上比例说明后不能超过 16000 字，请缩短描述。',true);return;}
  if(kind==='split'&&!currentImage){notify('请先生成或上传一张图片，也可以载入示例。',true);return;}
- if(!needKey())return;
+ if(!needKey(kind))return;
  setBusy(true,kind);notify('');
  if(window.matchMedia('(max-width:900px)').matches)$('canvas-stage').scrollIntoView({behavior:'smooth',block:'center'});
  let polling = false;
  try {
-  const payload={kind,prompt,key:$('api-key').value.trim(),ratio:kind==='generate'?ratio:'auto'};
+  const payload=jobPayload(kind,prompt,ratio);
   if(kind==='split')payload.image=await asDataURL(currentImage);
   const resp=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   payload.key='';
@@ -352,7 +436,9 @@ async function submit(kind) {
    if(kind==='generate'){
     await loadSource(job.images[0].url,'生成结果');sample=false;
     outputRatio=ratio;$('output-ratio').value=ratio;
-    notify(`生成完成 · ${job.elapsed} 秒。可以下载原图或继续拆解。`);
+    const warnings=Array.isArray(job.warnings)?job.warnings:[];
+    if(warnings.length)notify(`生成完成 · ${job.elapsed} 秒。注意：${warnings.join(' ')}`,true);
+    else notify(`生成完成 · ${job.elapsed} 秒。可以下载原图或继续拆解。`);
    } else {
     await loadLayers(orderedLayerItems(job.images,prompt),job.zip_url,false);
     notify(`拆解完成 · ${job.elapsed} 秒 · ${job.images.length} 个图层。点击画面里的元素，直接拖动。`);
@@ -852,7 +938,7 @@ $('export-composite').onclick=()=>{const output=document.createElement('canvas')
 async function init(){
  TrainingForm.mount($('training-form'));
  setPurpose('training');$('generate-ratio').value=PURPOSE_RATIO.training;
- silentCompile('training');updateStyleUI();countPrompt();
+ silentCompile('training');updateStyleUI();countPrompt();updateGenUI();
  await Promise.allSettled([
   (async()=>{
    try{
@@ -868,7 +954,10 @@ async function init(){
   (async()=>{
    try{
     const config=await StudioConfig.ready;
-    if(config.default_key&&!$('api-key').value.trim()){$('api-key').value=config.default_key;$('key-panel').querySelector('p').textContent='已载入本机默认 Key，仅用于本地测试。这里的修改不会覆盖本机配置。';}
+    let loaded=false;
+    if(config.default_key&&!$('api-key').value.trim()){$('api-key').value=config.default_key;loaded=true;}
+    if(config.default_qwen_key&&!$('qwen-key').value.trim()){$('qwen-key').value=config.default_qwen_key;loaded=true;}
+    if(loaded)$('key-note').textContent='已载入本机默认 Key（.local-key / .local-qwen-key），仅用于本地测试。这里的修改不会覆盖本机配置。';
    }catch(e){notify('服务连接失败，请确认本地服务仍在运行后刷新页面。',true);}
    keyState();
   })()

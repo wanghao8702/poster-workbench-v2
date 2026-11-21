@@ -116,12 +116,12 @@
 ├── training_extract.py      # 读取 txt / md / docx，调用千问文本模型识别培训信息
 ├── test_server.py / test_qwen.py / test_extract.py / test_training.cjs / test_layers.cjs / test_app.cjs
 ├── vendor/punk-skill/       # 第三方风格规则来源与许可
-├── docs/                    # 开发文档、初版设计与实施计划
+├── docs/                    # 开发文档（见 docs/README.md）、初版设计与实施计划
 ├── 启动.bat                  # Windows 启动入口
 └── 启动.command              # macOS 启动入口
 ```
 
-**继续开发或维护前，请先读 [docs/开发文档.md](docs/开发文档.md)**：架构、接口、关键约定、测试方法和已知问题都在里面。
+**继续开发或维护前，请先读 [docs/接手指南.md](docs/接手指南.md)**。全部开发文档见 [docs/README.md](docs/README.md)：接手指南、技术架构、接口文档、开发规范、变更日志、问题待办。
 
 ## 检查
 

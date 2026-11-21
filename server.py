@@ -6,10 +6,13 @@ from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import io
 import json
+import math
 import mimetypes
+import os
 import re
 from pathlib import Path
 import secrets
+import shutil
 import threading
 import time
 import urllib.error
@@ -33,6 +36,7 @@ MODEL = {'generate': 'ming-image-0.1-design', 'split': 'ming-image-0.1-design-la
 MAX_BODY = 64 * 1024 * 1024
 RATIOS = ('auto', '1:1', '9:16', '16:9', '5:2', '4:3', '3:4')
 PURPOSES = ('cover', 'training', 'free')
+ASSET_KINDS = ('generate', 'split', 'upload')
 EXTRACT_MAX_CHARS = 20000
 EXTRACT_FILE_LIMIT = 10 * 1024 * 1024
 JOBS = {}
@@ -88,31 +92,190 @@ def move_asset(asset_id, restore=False):
         source.rename(target)
 
 
+def asset_info(folder):
+    """One library entry for a record folder, or None when the folder is not a complete record."""
+    data = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
+    kind = data.get('kind')
+    if kind not in ASSET_KINDS: return None
+    images = []
+    for item in data.get('images', []):
+        name = item.get('name', '')
+        if not name or Path(name).name != name: continue
+        if (folder / name).is_file():
+            images.append({'name': name, 'url': f'/output/{folder.name}/{urllib.parse.quote(name)}'})
+    if not images: return None
+    source = data.get('source_name', '')
+    source_url = f'/output/{folder.name}/{urllib.parse.quote(source)}' if source and Path(source).name == source and (folder/source).is_file() else None
+    edit = folder / 'edit' / 'edit.json'
+    edited = edit.is_file()
+    return {'id': folder.name, 'kind': kind, 'model': str(data.get('model') or MODEL.get(kind, '')),
+            'created_at': float(data.get('created_at', (folder / 'manifest.json').stat().st_mtime)),
+            'elapsed': data.get('elapsed'), 'prompt': str(data.get('prompt', '')),
+            'ratio': data.get('ratio', 'auto'), 'images': images, 'source_url': source_url,
+            'zip_url': f'/output/{folder.name}/images.zip' if (folder/'images.zip').is_file() else None,
+            'edited': edited, 'edit_url': f'/output/{folder.name}/edit/edit.json' if edited else None,
+            'edited_at': edit.stat().st_mtime if edited else None}
+
+
 def list_assets():
     """Read completed assets from disk, including jobs from earlier server runs."""
     assets = []
     for path in OUTPUT.glob('*/manifest.json'):
         try:
-            data = json.loads(path.read_text(encoding='utf-8'))
-            if data.get('kind') not in MODEL: continue
-            folder = path.parent
-            images = []
-            for item in data.get('images', []):
-                name = item.get('name', '')
-                if not name or Path(name).name != name: continue
-                if (folder / name).is_file():
-                    images.append({'name': name, 'url': f'/output/{folder.name}/{urllib.parse.quote(name)}'})
-            if not images: continue
-            source = data.get('source_name', '')
-            source_url = f'/output/{folder.name}/{urllib.parse.quote(source)}' if source and Path(source).name == source and (folder/source).is_file() else None
-            assets.append({'id': folder.name, 'kind': data['kind'], 'model': str(data.get('model') or MODEL[data['kind']]),
-                           'created_at': float(data.get('created_at', path.stat().st_mtime)),
-                           'elapsed': data.get('elapsed'), 'prompt': str(data.get('prompt', '')),
-                           'ratio': data.get('ratio', 'auto'), 'images': images, 'source_url': source_url,
-                           'zip_url': f'/output/{folder.name}/images.zip' if (folder/'images.zip').is_file() else None})
+            info = asset_info(path.parent)
+            if info: assets.append(info)
         except (OSError, ValueError, TypeError, AttributeError):
             continue
     return sorted(assets, key=lambda item: item['created_at'], reverse=True)
+
+
+# ---------- Edit documents (static/editor.js) ----------
+DOC_LIMIT = 2 * 1024 * 1024
+UPLOAD_NAME = re.compile(r'edit/upload-[0-9a-f]{12}\.(?:png|jpg|webp)')
+EDIT_NUMBERS = {'left': (-1e6, 1e6), 'top': (-1e6, 1e6), 'scaleX': (0.01, 100), 'scaleY': (0.01, 100), 'angle': (-360, 360),
+                'opacity': (0, 1), 'fontSize': (4, 1000), 'lineHeight': (0.5, 5), 'charSpacing': (-500, 2000),
+                'width': (1, 1e6), 'height': (1, 1e6), 'rx': (0, 1e6), 'strokeWidth': (0, 200)}
+EDIT_STRINGS = {'id': 40, 'name': 40, 'text': 2000, 'fontFamily': 20, 'fill': 9, 'stroke': 9, 'fontWeight': 10,
+                'fontStyle': 10, 'textAlign': 10, 'shape': 10, 'source': 160}
+COMMON_FIELDS = {'id', 'kind', 'name', 'left', 'top', 'scaleX', 'scaleY', 'angle', 'opacity', 'visible', 'locked'}
+EDIT_FIELDS = {
+    'split': COMMON_FIELDS | {'source'},
+    'image': COMMON_FIELDS | {'source'},
+    'text': COMMON_FIELDS | {'text', 'fontFamily', 'fontSize', 'fill', 'fontWeight', 'fontStyle', 'textAlign', 'lineHeight',
+                             'charSpacing', 'width', 'stroke', 'strokeWidth', 'shadow'},
+    'shape': COMMON_FIELDS | {'shape', 'width', 'height', 'rx', 'fill', 'stroke', 'strokeWidth'},
+}
+
+
+def asset_dir(asset_id):
+    """Folder of an existing, finished record. Rejects ids that could reach outside output/."""
+    if not isinstance(asset_id, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', asset_id):
+        raise ValueError('素材 ID 无效。')
+    folder = OUTPUT / asset_id
+    if folder.is_symlink() or not (folder / 'manifest.json').is_file(): raise ValueError('素材不存在或已移除。')
+    with LOCK:
+        if JOBS.get(asset_id, {}).get('status') in ('queued', 'running'): raise ValueError('素材仍在处理中，请稍后再试。')
+    return folder
+
+
+def record_files(folder):
+    """Model output files a document may reference directly (never the manifest or anything outside the folder)."""
+    data = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
+    names = {item.get('name', '') for item in data.get('images', []) if isinstance(item, dict)}
+    names.add(data.get('source_name') or '')
+    return {n for n in names if n and isinstance(n, str) and Path(n).name == n and (folder / n).is_file()}
+
+
+def _number(value, low, high):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value): return None
+    return min(high, max(low, value))
+
+
+def clean_object(raw, folder, files):
+    if not isinstance(raw, dict) or raw.get('kind') not in EDIT_FIELDS: raise ValueError('编辑稿里有不认识的图层类型。')
+    kind, out = raw['kind'], {}
+    for key in EDIT_FIELDS[kind]:
+        if key not in raw: continue
+        value = raw[key]
+        if key in EDIT_NUMBERS:
+            value = _number(value, *EDIT_NUMBERS[key])
+        elif key in EDIT_STRINGS:
+            value = value[:EDIT_STRINGS[key]] if isinstance(value, str) else None
+        elif key in ('visible', 'locked'):
+            value = value if isinstance(value, bool) else None
+        elif key == 'shadow':
+            value = {k: _number(value.get(k), -500, 500) or 0 for k in ('blur', 'offsetX', 'offsetY')} | \
+                {'color': value['color'][:9] if isinstance(value.get('color'), str) else '#000000'} if isinstance(value, dict) else None
+        elif key == 'kind':
+            pass
+        if value is not None or key in ('stroke', 'shadow'): out[key] = value
+    if kind in ('split', 'image'):
+        source = out.get('source', '')
+        allowed = source in files or (kind == 'image' and UPLOAD_NAME.fullmatch(source) and (folder / source).is_file())
+        if not allowed: raise ValueError('编辑稿引用了不存在或不允许的图片文件。')
+    return out
+
+
+def clean_doc(doc, folder):
+    if not isinstance(doc, dict): raise ValueError('编辑稿格式错误。')
+    if len(json.dumps(doc, ensure_ascii=False).encode()) > DOC_LIMIT: raise ValueError('编辑稿过大（上限 2 MB）。')
+    if doc.get('version') != 1: raise ValueError('编辑稿版本不支持。')
+    objects = doc.get('objects')
+    if not isinstance(objects, list) or len(objects) > 200: raise ValueError('图层数量无效（最多 200 个）。')
+    size = doc.get('size') if isinstance(doc.get('size'), dict) else {}
+    files = record_files(folder)
+    return {'version': 1,
+            'size': {'width': _number(size.get('width'), 1, 20000) or 1, 'height': _number(size.get('height'), 1, 20000) or 1},
+            'outputRatio': doc.get('outputRatio') if doc.get('outputRatio') in RATIOS else 'auto',
+            'objects': [clean_object(o, folder, files) for o in objects]}
+
+
+def import_asset(payload):
+    """Turn an uploaded design into a library record so it can be edited and split like a generated image."""
+    blob = decode_image(payload.get('data', ''))
+    ext = image_type(blob)
+    asset_id = secrets.token_urlsafe(18)
+    folder = OUTPUT / asset_id
+    folder.mkdir(parents=True)
+    (folder / f'source.{ext}').write_bytes(blob)
+    name = payload.get('name') if isinstance(payload.get('name'), str) else ''
+    manifest = {'kind': 'upload', 'model': '', 'provider': '', 'images': [{'name': f'source.{ext}'}],
+                'source_name': f'source.{ext}', 'prompt': f'上传的图片：{Path(name).name[:80]}' if name else '上传的图片',
+                'ratio': 'auto', 'created_at': time.time()}
+    (folder / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
+    return asset_info(folder)
+
+
+def _store_upload(folder, blob):
+    (folder / 'edit').mkdir(exist_ok=True)
+    source = f'edit/upload-{secrets.token_hex(6)}.{image_type(blob)}'
+    (folder / source).write_bytes(blob)
+    return source
+
+
+def edit_upload(payload):
+    folder = asset_dir(payload.get('asset_id'))
+    source = _store_upload(folder, decode_image(payload.get('data', '')))
+    return {'source': source, 'url': f'/output/{folder.name}/{source}'}
+
+
+def save_edit(payload):
+    folder = asset_dir(payload.get('asset_id'))
+    doc = clean_doc(payload.get('doc'), folder)
+    (folder / 'edit').mkdir(exist_ok=True)
+    target = folder / 'edit' / 'edit.json'
+    temp = target.with_suffix('.json.tmp')
+    temp.write_text(json.dumps(doc, ensure_ascii=False), encoding='utf-8')
+    os.replace(temp, target)
+    return {'ok': True, 'updated_at': target.stat().st_mtime}
+
+
+def reset_edit(payload):
+    """Keep the old edit recoverable by hand: move it into the trash instead of deleting it."""
+    folder = asset_dir(payload.get('asset_id'))
+    edit = folder / 'edit'
+    if edit.is_dir() and not edit.is_symlink():
+        trash = OUTPUT / '.trash'
+        trash.mkdir(exist_ok=True)
+        edit.rename(trash / f'{folder.name}-edit-{int(time.time() * 1000)}')
+    return {'ok': True}
+
+
+def carry_edit(payload):
+    """Copy uploaded images from one record to another; the editor rescales the objects itself."""
+    source_dir, target_dir = asset_dir(payload.get('from')), asset_dir(payload.get('to'))
+    sources = payload.get('sources')
+    if not isinstance(sources, list) or len(sources) > 200: raise ValueError('要迁移的图片列表无效。')
+    mapping = {}
+    for source in sources:
+        if not isinstance(source, str) or not UPLOAD_NAME.fullmatch(source) or not (source_dir / source).is_file():
+            raise ValueError('只能迁移本记录里上传的图片。')
+        mapping[source] = _store_upload(target_dir, (source_dir / source).read_bytes())
+    return {'sources': mapping}
+
+
+EDIT_ROUTES = {'/api/assets/import': import_asset, '/api/edits/upload': edit_upload, '/api/edits/save': save_edit,
+               '/api/edits/reset': reset_edit, '/api/edits/carry': carry_edit}
 
 
 def run_job(job_id, kind, key, prompt, image, ratio='auto', qwen=None):
@@ -361,7 +524,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if not self.local_request(): return self.respond(403, {'error': '请求来源不允许。'})
-        if self.path not in ('/api/jobs', '/api/extract', '/api/assets/delete', '/api/assets/restore'): return self.respond(404, {'error': '接口不存在。'})
+        if self.path not in ('/api/jobs', '/api/extract', '/api/assets/delete', '/api/assets/restore', *EDIT_ROUTES): return self.respond(404, {'error': '接口不存在。'})
         try:
             length = int(self.headers.get('Content-Length', '0'))
             if length <= 0 or length > MAX_BODY: return self.respond(413, {'error': '上传内容过大，图片请控制在 20 MB 以内。'})
@@ -371,6 +534,7 @@ class Handler(BaseHTTPRequestHandler):
                 move_asset(payload.get('id'), restore=self.path.endswith('/restore'))
                 return self.respond(200, {'ok': True})
             if self.path == '/api/extract': return self.respond(200, extract_request(payload))
+            if self.path in EDIT_ROUTES: return self.respond(200, EDIT_ROUTES[self.path](payload))
             job = validate_job_payload(payload)
             kind = job['kind']
             with LOCK:

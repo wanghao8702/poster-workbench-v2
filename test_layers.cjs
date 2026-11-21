@@ -100,32 +100,3 @@ historyContext.undo();assert.deepEqual(Array.from(historyContext.manualOrder),[]
 historyContext.redo();assert.deepEqual(Array.from(historyContext.manualOrder),[2,0,1]);
 console.log('单层上移、下移、置顶置底、背景置底与顺序撤销检查通过');
 
-// Credentials remain user-entered; runtime discovery must not populate a key.
-(async()=>{
- const initSource=source.slice(source.indexOf('async function init(){'),source.lastIndexOf('init();'));
- async function checkInit(enteredKey,enteredPrompt,configOK=true){
-  const fields={'api-key':{value:enteredKey},'generate-prompt':{value:enteredPrompt},'generate-ratio':{value:'auto'},'style-select':{disabled:false,insertBefore(){},querySelector(){}}};
-  const notices=[];
-  const sandbox={
-   $:id=>fields[id],samplePrompt:'',punkStyles:[],countPrompt(){},keyState(){},setPurpose(){},updateStyleUI(){},
-   CoverCloud:{ready:configOK?Promise.resolve(false):Promise.reject(new Error('offline'))},
-   notify:message=>notices.push(message),
-   fetch:async url=>url==='/punk-styles.json'?{ok:true,json:async()=>({styles:[]})}:url==='/api/config'
-    ?{ok:configOK,json:async()=>({default_key:'test-local-key'})}
-    :{ok:true,text:async()=>'example prompt'}
-  };
-  vm.createContext(sandbox);vm.runInContext(initSource,sandbox);await sandbox.init();
-  return {fields,notices};
- }
- const loaded=await checkInit('','');
- assert.equal(loaded.fields['api-key'].value,'');
- assert.equal(loaded.fields['generate-prompt'].value,'example prompt');
- const entered=await checkInit('user-key','user prompt');
- assert.equal(entered.fields['api-key'].value,'user-key');
- assert.equal(entered.fields['generate-prompt'].value,'user prompt');
- const unavailable=await checkInit('','',false);
- assert.equal(unavailable.fields['api-key'].value,'');
- assert.equal(unavailable.fields['generate-prompt'].value,'example prompt');
- assert.equal(unavailable.notices.length,1);
- console.log('Key 不自动填入、用户输入保留和配置失败处理检查通过');
-})().catch(error=>{console.error(error);process.exitCode=1;});

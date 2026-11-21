@@ -1,7 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 let mode = 'generate', currentImage = null, layers = [], reverseStack = false, busy = false;
-let samplePrompt = '', timer = null, taskId = null, sample = false;
+let timer = null, taskId = null, sample = false;
 let selectedIndex = -1, hoverIndex = -1, drag = null, frame = 0, statusTimer = null;
 let past = [], future = [];
 let manualOrder = [];
@@ -14,62 +14,39 @@ function initialLayerOrder(items){
 let outputRatio = 'auto';
 let assets = [], libraryRequest = 0;
 let deletedAssets = [];
-let punkStyles = [], appliedStyleSignature = '', purpose = 'cover';
-const PURPOSE_RATIO={cover:'5:2',xhs:'3:4',ecommerce:'3:4',free:'auto'};
-const PROMPT_IDS={cover:'cover-prompt',xhs:'xhs-prompt',ecommerce:'generate-prompt',free:'free-prompt'};
+let punkStyles = [], appliedStyleSignature = '', purpose = 'training';
+const PURPOSE_RATIO={cover:'5:2',training:'3:4',free:'auto'};
+const PROMPT_IDS={cover:'cover-prompt',training:'generate-prompt',free:'free-prompt'};
 function promptEditor(){return $(PROMPT_IDS[purpose]);}
 const categoryDrafts = {};
 $('generation-settings').addEventListener('toggle',()=>{$('generation-settings').querySelector('summary span:last-child').textContent=$('generation-settings').open?'收起 ↗':'展开 ↗';});
-const XHS_FIELDS=['xhs-audience','xhs-type','xhs-support','xhs-tag','xhs-account','xhs-scene'];
-const STYLE_FIELDS=['style-select','cover-title','cover-context','generate-ratio',...XHS_FIELDS];
+const STYLE_FIELDS=['style-select','cover-title','cover-context','generate-ratio'];
 const styleSignature=()=>JSON.stringify(STYLE_FIELDS.map(id=>$(id).value));
 function currentStyle(){
  const [source,id]=$('style-select').value.split(':');
  if(source==='punk'){const style=punkStyles.find(item=>item.id===id);return style?{source,id,style}:null;}
- if(source==='ponyo')return {source,id};
  return null;
 }
 function setPurpose(next){
- purpose=Object.hasOwn(PURPOSE_RATIO,next)?next:'cover';
+ purpose=Object.hasOwn(PURPOSE_RATIO,next)?next:'training';
  for(const chip of document.querySelectorAll('[data-purpose]'))chip.setAttribute('aria-checked',String(chip.dataset.purpose===purpose));
- $('style-settings').hidden=purpose==='ecommerce'||purpose==='free';$('generation-settings').hidden=purpose==='ecommerce'||purpose==='free';
+ $('generation-settings').hidden=purpose!=='cover';
  for(const [category,id] of Object.entries(PROMPT_IDS))$(id).hidden=category!==purpose;
  $('prompt-label').htmlFor=PROMPT_IDS[purpose];
- $('category-setting-label').textContent=purpose==='xhs'?'小红书模板与标题设置':'封面风格与标题设置';
- for(const group of $('style-select').querySelectorAll('optgroup')){const enabled=purpose==='xhs'?group.id==='ponyo-group':group.id!=='ponyo-group';group.hidden=!enabled;group.disabled=!enabled;}
 }
 function updateStyleUI(){
- const chosen=currentStyle(),ponyo=chosen?.source==='ponyo';
- $('cover-fields').hidden=!chosen;$('xhs-extra').hidden=!ponyo;if(!ponyo)$('xhs-plan').hidden=true;
- $('style-source').textContent=chosen?(ponyo?'波妞 PONYO':'Punk Skill'):'';
- const template=ponyo&&PonyoCover.templates.find(item=>item.id===chosen.id);
- const description=chosen?(ponyo?(template?`${template.reason} 锚点：${template.anchor}。`:'按「内容类型」自动选择最合适的小红书模板。'):chosen.style.description||''):'';
+ const chosen=currentStyle();
+ $('cover-fields').hidden=!chosen;
+ $('style-source').textContent=chosen?'Punk Skill':'';
+ const description=chosen?chosen.style.description||'':'';
  $('style-description').textContent=description;$('style-description').hidden=!description;
- $('title-hint').textContent=ponyo?'建议 8–14 字':'';
- $('context-hint').textContent=ponyo?'内容主题，必填':'可选';
- $('cover-context').placeholder=ponyo?'这篇笔记讲什么？例如：AI 视频提示词教程':'主题、读者或希望表现的画面';
- // The prompt remains the primary editing surface for every category.
- $('prompt-label').textContent=chosen?'完整提示词（可修改）':'画面描述';
- $('free-presets').hidden=purpose!=='ecommerce';$('creative-presets').hidden=purpose!=='free';$('apply-style').hidden=!chosen;
- if(purpose==='free')$('prompt-label').textContent='自由创作提示词';
- for(const option of $('generate-ratio').options)option.disabled=ponyo&&!['3:4','1:1'].includes(option.value);
- if(ponyo&&!['3:4','1:1'].includes($('generate-ratio').value))$('generate-ratio').value='3:4';
-}
-function showXhsPlan(plan){
- const list=$('xhs-plan-list');list.replaceChildren();
- for(const [name,value] of [['模板',plan.template],['理由',plan.reason],['锚点',plan.anchor],['配色',plan.colors.join(' / ')],['字重',plan.weight]]){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=name;dd.textContent=value;list.append(dt,dd);}
- $('xhs-plan').hidden=false;
+ $('prompt-label').textContent=purpose==='free'?'自由创作提示词':purpose==='training'||chosen?'完整提示词（可修改）':'画面描述';
+ $('creative-presets').hidden=purpose!=='free';$('apply-style').hidden=!(purpose==='cover'&&chosen);
 }
 function applyStyle(){
  const chosen=currentStyle();if(!chosen)return false;
  try{
-  let prompt;
-  if(chosen.source==='punk')prompt=PunkCover.compile(chosen.style,$('cover-title').value,$('cover-context').value,$('generate-ratio').value);
-  else{
-   const title=$('cover-title').value.trim();
-   const result=PonyoCover.compile({topic:$('cover-context').value.trim()||title,audience:$('xhs-audience').value.trim()||'对这个主题感兴趣的读者',type:$('xhs-type').value,title,support:$('xhs-support').value,template:chosen.id,tag:$('xhs-tag').value,ratio:$('generate-ratio').value,scene:$('xhs-scene').value,account:$('xhs-account').value});
-   prompt=result.prompt;showXhsPlan(result.plan);
-  }
+  const prompt=PunkCover.compile(chosen.style,$('cover-title').value,$('cover-context').value,$('generate-ratio').value);
   if(prompt.length>16000)throw new Error('描述太长，请缩短补充内容。');
   promptEditor().value=prompt;appliedStyleSignature=styleSignature();countPrompt();return true;
  }catch(e){notify(e.message,true);return false;}
@@ -85,10 +62,8 @@ for(const chip of document.querySelectorAll('[data-purpose]'))chip.onclick=()=>{
  const saved=categoryDrafts[next];
  if(saved){STYLE_FIELDS.forEach((id,i)=>$(id).value=saved.fields[i]);promptEditor().value=saved.prompt;appliedStyleSignature=saved.signature;}
  else{
-  $('style-select').value=next==='xhs'?'ponyo:auto':'';$('cover-title').value=next==='xhs'?'5个AI视频提示词公式':'';$('cover-context').value=next==='xhs'?'AI 视频提示词教程':'';
+  $('style-select').value='';$('cover-title').value='';$('cover-context').value='';
   $('generate-ratio').value=PURPOSE_RATIO[next];appliedStyleSignature='';
-  if(next==='ecommerce'&&!promptEditor().value)promptEditor().value=samplePrompt;
-  if(next==='xhs')applyStyle();
  }
  $('generation-settings').open=false;updateStyleUI();countPrompt();
 };
@@ -99,13 +74,6 @@ const creativeExamples={
 for(const button of document.querySelectorAll('[data-creative]'))button.onclick=()=>{promptEditor().value=creativeExamples[button.dataset.creative];countPrompt();promptEditor().focus();};
 $('generate-ratio').onchange=()=>{};
 $('apply-style').onclick=applyStyle;
-{
- // Ponyo templates are bundled with the page, so they can be listed before the Punk catalogue arrives.
- const group=document.createElement('optgroup');group.id='ponyo-group';group.label='小红书模板 · 波妞';
- const auto=document.createElement('option');auto.value='ponyo:auto';auto.textContent='按内容类型推荐';group.append(auto);
- for(const template of PonyoCover.templates){const option=document.createElement('option');option.value=`ponyo:${template.id}`;option.textContent=template.name;group.append(option);}
- $('style-select').append(group);
-}
 const splitPrompt = `请理解这张图片的实际内容、视觉层级和遮挡关系，将其拆分成可独立移动、缩放、隐藏和复用的 RGBA PNG 图层。
 
 【细分原则】
@@ -130,15 +98,6 @@ $('reset-split-prompt').onclick=()=>{
  if(busy)return;
  $('split-prompt').value=splitPrompt;
  notify('已恢复通用图层规划：按遮挡关系，从底层到顶层尽量细分。');
-};
-const presets = {
- coffee: `【任务】为虚构咖啡品牌「慢岛」制作一张新品首发电商海报，包含真实产品摄影与清晰中文排版。
-【产品】奶油白纸杯，杯身印有「慢岛 COFFEE」。旁边摆放烘焙咖啡豆和一小块燕麦饼干。
-【风格】暖米色与咖啡棕配色，晨光、自然阴影、丰富材质，简洁高级，充足留白。
-【排版】品牌置顶；主标题占据上半部；产品居中；价格与购买按钮置底。中文标题使用优雅宋体，其余使用清晰无衬线字体。
-【准确文案】品牌：慢岛 COFFEE。主标题：慢一点，也很好。副标题：一杯燕麦拿铁，留住早晨的温度。卖点：醇香咖啡 / 柔和燕麦 / 即享好时光。价格：新品尝鲜 ¥19。按钮：开启好心情。底部：虚构品牌 · 创意展示。
-【要求】文案逐字准确，说明标签不印到海报上。不添加二维码、水印或未经说明的文案。只输出完整海报。`,
- free: ''
 };
 const ICON = {
  eye: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -216,12 +175,6 @@ for (const button of document.querySelectorAll('.tabbar button')) button.onkeydo
 };
 function countPrompt() {$('prompt-count').textContent = `${promptEditor().value.length.toLocaleString()} 字`;}
 for(const id of Object.values(PROMPT_IDS))$(id).oninput=countPrompt;
-for (const button of document.querySelectorAll('[data-preset]')) button.onclick = () => {
- clearStyle();setPurpose('ecommerce');$('generate-ratio').value='3:4';
- document.querySelectorAll('[data-preset]').forEach(b => b.classList.toggle('selected', b === button));
- promptEditor().value = button.dataset.preset === 'poster' ? samplePrompt : presets[button.dataset.preset];
- countPrompt();promptEditor().focus();
-};
 
 /* Fit whatever is on the stage to the space the side panels leave over. */
 function fitStage() {
@@ -298,7 +251,7 @@ function setBusy(value,kind) {
  $('upload').disabled=value;
  for(const id of Object.values(PROMPT_IDS))$(id).disabled=value;$('split-prompt').disabled=value;
  $('generate-ratio').disabled=value;$('output-ratio').disabled=value;
- for(const id of ['style-select','cover-title','cover-context',...XHS_FIELDS])$(id).disabled=value;
+ for(const id of ['style-select','cover-title','cover-context'])$(id).disabled=value;
  if(value)$('layer-scale').disabled=true;
  $('busy-overlay').hidden=!value;
  $('busy-title').textContent=kind==='generate'?'正在生成你的画面':'正在拆解每一个图层';
@@ -329,14 +282,6 @@ async function submit(kind) {
  try {
   const payload={kind,prompt,key:$('api-key').value.trim(),ratio:kind==='generate'?ratio:'auto'};
   if(kind==='split')payload.image=await asDataURL(currentImage);
-  const cloud=await CoverCloud.ready;
-  if(cloud){
-   const job=await CoverCloud.submit(payload);
-   if(kind==='generate'){await loadSource(job.images[0].url,'生成结果');sample=false;outputRatio=ratio;$('output-ratio').value=ratio;notify(`生成完成 · ${job.elapsed} 秒。可以下载原图或继续拆解。`);}
-   else{await loadLayers(orderedLayerItems(job.images,prompt),job.zip_url,false);notify(`拆解完成 · ${job.elapsed} 秒 · ${job.images.length} 个图层。点击画面里的元素，直接拖动。`);}
-   if(job.storage_warning)notify(job.storage_warning,true);
-   return;
-  }
   const resp=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   payload.key='';
   const created=await resp.json();if(!resp.ok)throw new Error(created.error||'任务提交失败。');
@@ -375,8 +320,7 @@ async function refreshLibrary(){
  $('library-status').textContent='正在读取素材…';
  try{
   let result;
-  if(await CoverCloud.ready)result={assets:await CoverCloud.list()};
-  else{const response=await fetch('/api/assets');if(!response.ok)throw new Error('素材库暂时无法读取。');result=await response.json();}if(request!==libraryRequest)return;
+  const response=await fetch('/api/assets');if(!response.ok)throw new Error('素材库暂时无法读取。');result=await response.json();if(request!==libraryRequest)return;
   assets=result.assets;renderLibrary();
  }catch(e){if(request===libraryRequest)$('library-status').textContent='读取失败，请检查服务或浏览器存储后点击刷新。';}
 }
@@ -401,7 +345,6 @@ function renderLibrary(){
  }));
 }
 async function changeAsset(id,action){
- if(await CoverCloud.ready){await CoverCloud.change(id,action);return;}
  const response=await fetch(`/api/assets/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
  const result=await response.json();if(!response.ok)throw new Error(result.error||'操作失败。');
 }
@@ -851,9 +794,9 @@ $('layer-menu').onclick=event=>{
 
 $('reverse-stack').onclick=()=>{remember();manualOrder=displayLayers().map(layer=>layer.index).reverse();reverseStack=!reverseStack;orderRows();refreshSelection();renderComposition();notify('已反转图层叠放顺序。');};
 $('select-all').onclick=()=>{remember();layers.forEach(layer=>{layer.visible=true;});refreshSelection();renderComposition();};
-$('export-composite').onclick=()=>{const output=document.createElement('canvas');paintComposition(output);output.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='cover-studio.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);},'image/png');};
+$('export-composite').onclick=()=>{const output=document.createElement('canvas');paintComposition(output);output.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='poster-v2.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);},'image/png');};
 async function init(){
- setPurpose('ecommerce');$('generate-ratio').value='3:4';updateStyleUI();
+ setPurpose('training');$('generate-ratio').value=PURPOSE_RATIO.training;updateStyleUI();
  await Promise.allSettled([
   (async()=>{
    try{
@@ -862,19 +805,16 @@ async function init(){
     if(punkStyles.length){
      const group=document.createElement('optgroup');group.label=`文章封面 · Punk（${punkStyles.length}）`;
      for(const style of punkStyles){const option=document.createElement('option');option.value=`punk:${style.id}`;option.textContent=style.name;group.append(option);}
-     $('style-select').insertBefore(group,$('style-select').querySelector('optgroup'));
+     $('style-select').append(group);
     }
-   }catch(e){notify('Punk 风格库读取失败，仍可使用小红书模板或自由描述。',true);}
-  })(),
-  (async()=>{
-   try{const response=await fetch('/example-prompt.txt');if(!response.ok)throw new Error();samplePrompt=await response.text();if(!$('generate-prompt').value)$('generate-prompt').value=samplePrompt;countPrompt();}
-   catch(e){notify('示例提示词无法读取，请输入你的创作想法。',true);}
+   }catch(e){notify('Punk 风格库读取失败，封面图仍可自由描述。',true);}
   })(),
   (async()=>{
    try{
-    if(await CoverCloud.ready){$('asset-library').querySelector('.library-head p').textContent='素材保存在当前浏览器，清除网站数据后会移除。';}
-    keyState();
-   }catch(e){notify('服务连接失败，请刷新页面后重试。',true);}
+    const config=await StudioConfig.ready;
+    if(config.default_key&&!$('api-key').value.trim()){$('api-key').value=config.default_key;$('key-panel').querySelector('p').textContent='已载入本机默认 Key，仅用于本地测试。这里的修改不会覆盖本机配置。';}
+   }catch(e){notify('服务连接失败，请确认本地服务仍在运行后刷新页面。',true);}
+   keyState();
   })()
  ]);
 }

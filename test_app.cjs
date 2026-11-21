@@ -125,7 +125,7 @@ const plain=v=>JSON.parse(JSON.stringify(v));
   const timers=[];const saves=[];let fail=false;
   const a=sandbox({currentAsset:null,setTimeout:(fn)=>{timers.push(fn);return timers.length;},clearTimeout(){},
    postJSON:async(url,body)=>{saves.push([url,body]);if(fail)throw new Error('磁盘已满');return {ok:true};},
-   PosterEditor:{isOpen:()=>true,toDoc:()=>({version:1,objects:[1]})},addEventListener(){}});
+   PosterEditor:{isOpen:()=>true,hasPending:()=>false,flush(){},toDoc:()=>({version:1,objects:[1]})},addEventListener(){}});
   a.els['save-state']={...element(),dataset:{}};
   vm.runInContext(slice('let saveTimer=null','$(\'save-state\').onclick'),a);
   a.onEditorChange();assert.equal(timers.length,0,'示例（没有记录）不保存');

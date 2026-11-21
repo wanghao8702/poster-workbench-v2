@@ -63,7 +63,10 @@ const PosterEditor=(()=>{
  }
  function describe(obj){
   const p=obj.pe;
-  const o={id:p.id,kind:p.kind,name:p.name||'',left:obj.left,top:obj.top,scaleX:obj.scaleX,scaleY:obj.scaleY,angle:obj.angle,
+  // Inside a multi-selection Fabric keeps left/top relative to the selection; always store scene values.
+  const t=obj.group?fabric.util.qrDecompose(obj.calcTransformMatrix())
+   :{translateX:obj.left,translateY:obj.top,scaleX:obj.scaleX,scaleY:obj.scaleY,angle:obj.angle};
+  const o={id:p.id,kind:p.kind,name:p.name||'',left:t.translateX,top:t.translateY,scaleX:t.scaleX,scaleY:t.scaleY,angle:t.angle,
    opacity:obj.opacity,visible:obj.visible,locked:!!p.locked};
   if(p.kind==='split'||p.kind==='image')o.source=p.source;
   else if(p.kind==='text'){
@@ -321,7 +324,7 @@ const PosterEditor=(()=>{
   if(command&&key==='y'){event.preventDefault();redo();return;}
   const obj=selected();
   if(command&&key==='c'&&obj){clipboard=obj.pe.id;return;}
-  if(command&&key==='v'&&clipboard&&find(clipboard)){event.preventDefault();duplicate(clipboard);return;}
+  // Ctrl+V is left to the browser: the paste handler below decides between a clipboard image and the copied layer.
   if(command&&key==='d'&&obj){event.preventDefault();duplicate(obj.pe.id);return;}
   if(command||event.altKey)return;
   if(event.key==='Escape'){canvas.discardActiveObject();canvas.requestRenderAll();return;}
@@ -331,9 +334,15 @@ const PosterEditor=(()=>{
    event.preventDefault();const step=event.shiftKey?10:1;
    obj.set({left:obj.left+d[0]*step,top:obj.top+d[1]*step});obj.setCoords();canvas.requestRenderAll();
    // Record once per key press, not on every auto-repeat.
-   clearTimeout(onKey.timer);onKey.timer=setTimeout(commit,250);opts.onSelection?.(obj);
+   later(250);opts.onSelection?.(obj);
   }else if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();remove(obj.pe.id);}
  }
+
+ // Changes that are recorded after a short pause (arrow keys, typing). flush() records them right away.
+ let pendingTimer=null;
+ function later(ms){clearTimeout(pendingTimer);pendingTimer=setTimeout(()=>{pendingTimer=null;commit();},ms);}
+ function flush(){if(pendingTimer){clearTimeout(pendingTimer);pendingTimer=null;}commit();}
+ const hasPending=()=>!!pendingTimer||!!canvas?.getActiveObject()?.isEditing;
 
  /* ---------- setup ---------- */
  function init(options){
@@ -346,8 +355,9 @@ const PosterEditor=(()=>{
   canvas.on('mouse:up',()=>{if(guides.length){guides=[];canvas.requestRenderAll();}});
   canvas.on('after:render',e=>{if(e.ctx===canvas.contextContainer&&openFlag)drawOverlay(e.ctx);});
   for(const name of ['selection:created','selection:updated','selection:cleared'])canvas.on(name,()=>opts.onSelection?.(selected()));
-  canvas.on('text:changed',()=>opts.onSelection?.(selected()));
-  canvas.on('text:editing:exited',commit);
+  // Typing in the canvas is recorded shortly after each pause, not only when editing ends.
+  canvas.on('text:changed',()=>{opts.onSelection?.(selected());later(500);});
+  canvas.on('text:editing:exited',flush);
   canvas.on('mouse:down',e=>{
    if(e.e.button!==2)return;
    const target=e.target&&e.target.pe?e.target:null;
@@ -358,14 +368,15 @@ const PosterEditor=(()=>{
   upper.addEventListener('dragover',e=>{e.preventDefault();});
   upper.addEventListener('drop',e=>{e.preventDefault();const f=e.dataTransfer?.files?.[0];if(f)addImage(f).catch(err=>opts.notify?.(err.message,true));});
   document.addEventListener('paste',e=>{
-   if(!openFlag||e.target.closest?.('input,textarea,dialog')||canvas.getActiveObject()?.isEditing)return;
+   if(!openFlag||opts.isBlocked?.()||e.target.closest?.('input,textarea,dialog')||canvas.getActiveObject()?.isEditing)return;
    const f=[...(e.clipboardData?.files||[])].find(x=>x.type.startsWith('image/'));
    if(f){e.preventDefault();addImage(f).catch(err=>opts.notify?.(err.message,true));}
+   else if(clipboard&&find(clipboard)){e.preventDefault();duplicate(clipboard);}
   });
   document.addEventListener('keydown',onKey);
  }
 
- return {init,open,close,fit,toDoc,addImage,addObjects,addText,addShape,select,selected,update,reorder,duplicate,remove,reset,resetAll,showAll,reverse,
+ return {init,open,close,fit,toDoc,flush,hasPending,commitNow:commit,addImage,addObjects,addText,addShape,select,selected,update,reorder,duplicate,remove,reset,resetAll,showAll,reverse,
   undo,redo,canUndo:()=>history.canUndo(),canRedo:()=>history.canRedo(),setOutputRatio,exportCanvas,objectBlob,thumbnail,
   objects,describe,isOpen:()=>openFlag,isSample:()=>sample,scene:()=>({...scene}),assetId:()=>assetId,ADDED_KINDS,
   backdrop:()=>objects()[0]?.getElement?.()||null,

@@ -155,7 +155,11 @@ const EditorPanel=(()=>{
   return h('span',{class:'prop-color'},picker,sw);
  }
  function buildProps(obj){
-  const box=$('props');box.replaceChildren();propsFor=obj?obj.pe.id:null;
+  const box=$('props'),previous=propsFor;
+  propsFor=obj?obj.pe.id:null; // set first: recording below refreshes the panel, which must not rebuild again
+  // A value typed into the panel is already applied live; record it before its input disappears with the old selection.
+  if(previous&&box.contains(document.activeElement)&&E.objects().some(o=>o.pe.id===previous))E.commitNow();
+  box.replaceChildren();
   box.hidden=!obj;if(!obj)return;
   const k=obj.pe.kind;
   box.append(h('div',{class:'props-title'},h('strong',{text:`${KIND_LABEL[k]}属性`}),h('span',{text:obj.pe.name||''})));
@@ -196,7 +200,7 @@ const EditorPanel=(()=>{
    textAlign:obj.textAlign,strokeOn:obj.strokeWidth>0,stroke:toHex(obj.stroke||'#ffffff'),strokeWidth:obj.strokeWidth,
    shadowOn:!!s,shadowColor:toHex(s?.color||'#000000'),shadowBlur:s?.blur??8,shadowOffset:s?.offsetY??4,rx:Math.round(obj.rx||0)};
   for(const input of box.querySelectorAll('[data-key]')){
-   const key=input.dataset.key;if(input===document.activeElement||!(key in values))continue;
+   const key=input.dataset.key;if(input===document.activeElement||values[key]===undefined)continue;
    if(input.type==='checkbox')input.checked=!!values[key];else input.value=values[key];
   }
   const h_=box.querySelector('[data-key=h]');if(h_)h_.disabled=obj.pe.kind==='text';

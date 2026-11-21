@@ -676,9 +676,15 @@ async function saveNow(){
  })();
  await saving;saving=null;
 }
-async function flushSave(){if(saveTimer||dirty)await saveNow();else if(saving)await saving;}
+async function flushSave(){
+ if(PosterEditor.isOpen()&&PosterEditor.hasPending())PosterEditor.flush(); // typing or nudging not yet recorded
+ if(saveTimer||dirty)await saveNow();else if(saving)await saving;
+}
 $('save-state').onclick=()=>{if($('save-state').dataset.state==='error')saveNow();};
-addEventListener('beforeunload',event=>{if(dirty||saving||saveTimer){event.preventDefault();event.returnValue='';}});
+addEventListener('beforeunload',event=>{
+ const pending=currentAsset&&PosterEditor.isOpen()&&PosterEditor.hasPending();
+ if(dirty||saving||saveTimer||pending){event.preventDefault();event.returnValue='';}
+});
 async function uploadToRecord(data){
  if(!currentAsset)return null;
  return postJSON('/api/edits/upload',{asset_id:currentAsset.id,data});

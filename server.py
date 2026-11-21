@@ -171,6 +171,13 @@ def _number(value, low, high):
     return min(high, max(low, value))
 
 
+def _shadow(value):
+    if not isinstance(value, dict): return None
+    shadow = {k: _number(value.get(k), -500, 500) or 0 for k in ('blur', 'offsetX', 'offsetY')}
+    shadow['color'] = value['color'][:9] if isinstance(value.get('color'), str) else '#000000'
+    return shadow
+
+
 def clean_object(raw, folder, files):
     if not isinstance(raw, dict) or raw.get('kind') not in EDIT_FIELDS: raise ValueError('编辑稿里有不认识的图层类型。')
     kind, out = raw['kind'], {}
@@ -184,8 +191,7 @@ def clean_object(raw, folder, files):
         elif key in ('visible', 'locked'):
             value = value if isinstance(value, bool) else None
         elif key == 'shadow':
-            value = {k: _number(value.get(k), -500, 500) or 0 for k in ('blur', 'offsetX', 'offsetY')} | \
-                {'color': value['color'][:9] if isinstance(value.get('color'), str) else '#000000'} if isinstance(value, dict) else None
+            value = _shadow(value)
         elif key == 'kind':
             pass
         if value is not None or key in ('stroke', 'shadow'): out[key] = value

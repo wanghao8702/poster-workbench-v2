@@ -24,13 +24,16 @@
         <label><input type="radio" name="gen-provider" value="qwen" checked> 千问 · 支持讲师肖像</label>
         <label><input type="radio" name="gen-provider" value="maas"> MaaS</label>
       </div>
+      <p id="maas-gen-note" class="key-hint" hidden>MaaS 生图使用下方拆层 Key，不支持讲师肖像参考。千问 Key 仍用于 AI 识别填入。</p>
+    </fieldset>
+    <fieldset class="key-group"><legend>千问 · 阿里云百炼</legend>
       <div id="qwen-fields" class="qwen-fields">
         <label for="qwen-key">千问 API Key</label>
         <div class="key-input"><input id="qwen-key" type="password" autocomplete="off" placeholder="粘贴阿里云百炼 API Key" spellcheck="false"><button type="button" class="quiet" data-reveal="qwen-key" aria-label="显示千问 API key">显示</button></div>
-        <label for="qwen-model">模型</label><input id="qwen-model" class="size-select" value="qwen-image-3.0-pro" spellcheck="false" autocomplete="off">
+        <label for="qwen-model">生图模型</label><input id="qwen-model" class="size-select" value="qwen-image-3.0-pro" spellcheck="false" autocomplete="off">
+        <label for="text-model">文本模型 <span class="key-hint-inline">用于 AI 识别填入</span></label><input id="text-model" class="size-select" value="qwen-plus" spellcheck="false" autocomplete="off">
         <label for="qwen-base-url">Base URL</label><input id="qwen-base-url" class="size-select" value="https://dashscope.aliyuncs.com/api/v1" spellcheck="false" autocomplete="off">
       </div>
-      <p id="maas-gen-note" class="key-hint" hidden>MaaS 生图使用下方拆层 Key，不支持讲师肖像参考。</p>
     </fieldset>
     <fieldset class="key-group"><legend>拆层接口 · MaaS</legend>
       <label for="api-key">MaaS API Key</label>

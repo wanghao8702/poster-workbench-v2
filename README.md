@@ -50,6 +50,7 @@
 
 弹窗字段：培训主题（必填）、目标受众（可多选）、日期、时间、形式（线下 / 线上 / 混合）、地点、主标题（留空则用主题）、副标题、行动号召、课程内容（每行一条），以及讲师（最多 6 位：肖像、姓名、头衔、资历、姿势、着装）和讲师呈现方式（主讲人出镜 / 肖像 + 简介 / 仅文字）。
 
+- **AI 识别填入**：弹窗顶部点「AI 识别填入」，粘贴培训通知，或上传 `.txt` / `.md` / `.docx` 文件，千问文本模型会提取主题、时间地点、文案、课程要点和讲师，填进表单。识别结果替换整张表单（讲师肖像按姓名保留，呈现方式不变），标黄的是识别出的内容，核对后再保存；点「取消」可恢复原表单。原文超过 2 万字时只识别前 2 万字。旧版 `.doc` 和 PDF 暂不支持，请另存为 `.docx` 或复制文字粘贴。
 - 文字字段保存在当前浏览器，刷新后保留；**讲师肖像不保存**，刷新后需重新上传。
 - 肖像上传后会在浏览器内压缩为长边不超过 1600 px 的 JPEG。
 - `qwen-image-2.1` 系列模型一次最多参考 10 张肖像，其他千问模型最多 3 张。超出的讲师按虚构形象绘制，弹窗里会提前提示。
@@ -61,7 +62,7 @@
 | 分组 | 字段 | 默认值 |
 | --- | --- | --- |
 | 生图接口 | 千问 / MaaS | 千问 |
-| 千问 | API Key、模型、Base URL | `qwen-image-3.0-pro`、`https://dashscope.aliyuncs.com/api/v1` |
+| 千问 | API Key、生图模型、文本模型、Base URL | `qwen-image-3.0-pro`、`qwen-plus`、`https://dashscope.aliyuncs.com/api/v1` |
 | 拆层接口 | MaaS API Key | — |
 
 - Base URL 带 `/api/v1` 时走百炼原生图像接口；百炼官方域名的 `/compatible-mode/v1` 地址也会自动改走原生接口（兼容模式没有图像接口）。只接受 `https://` 地址。
@@ -84,6 +85,7 @@
 
 - 生成和拆层结果保存在项目下的 `output/`，每个任务一个文件夹，包含图片、`manifest.json`、`prompt.txt` 和 `images.zip`。千问任务另存所用的讲师肖像 `ref-01.jpg …`，仅用于留档，不进 ZIP。
 - **讲师肖像会发送给你配置的千问服务**，请确认已获得讲师本人同意。
+- 使用 AI 识别填入时，粘贴的文字或上传的文件内容会发送给千问文本模型（同一个百炼 Key），不会保存到 `output/`。
 - API Key 不会写入素材记录、日志或报错信息。
 - 素材库保存模型原始输出，拖动、缩放和显隐等编辑状态不自动保存，请导出合成 PNG。
 
@@ -111,7 +113,8 @@
 │   └── style.css
 ├── server.py                # Python 本地服务：任务队列、素材库、MaaS 调用
 ├── qwen_client.py           # 千问 / 百炼图像接口
-├── test_server.py / test_qwen.py / test_training.cjs / test_layers.cjs / test_app.cjs
+├── training_extract.py      # 读取 txt / md / docx，调用千问文本模型识别培训信息
+├── test_server.py / test_qwen.py / test_extract.py / test_training.cjs / test_layers.cjs / test_app.cjs
 ├── vendor/punk-skill/       # 第三方风格规则来源与许可
 ├── docs/                    # 设计文档与实施计划
 ├── 启动.bat                  # Windows 启动入口
@@ -121,7 +124,7 @@
 ## 检查
 
 ```bash
-python -m unittest test_server.py test_qwen.py
+python -m unittest test_server.py test_qwen.py test_extract.py
 node test_training.cjs
 node test_layers.cjs
 node test_app.cjs

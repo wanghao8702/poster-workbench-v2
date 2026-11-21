@@ -104,4 +104,22 @@ const plain=v=>JSON.parse(JSON.stringify(v));
  assert.equal(stage.flow,1);assert.equal(stage.mode,'generate');
  assert.equal(stage.els['generate-prompt'].value,'我的提示词','清空画布不动提示词');
  console.log('清空画布：确认、重置画布、保留提示词检查通过');
+
+ // test_merge_extracted_replaces_form_and_keeps_photos_by_name
+ const current={values:{...TrainingPoster.example(),lecturerMode:'feature',speakers:[{...TrainingPoster.defaultSpeaker(0),name:'明哥',photoName:'ming.jpg'},{...TrainingPoster.defaultSpeaker(1),name:'林悦',photoName:'lin.jpg'}]},
+  photos:[{name:'ming.jpg',dataUrl:'data:m'},{name:'lin.jpg',dataUrl:'data:l'}]};
+ const extracted={topic:'安全生产月',audiences:['全体员工'],date:'',time:'',venue:'',format:'线上',headline:'',sub:'',cta:'',courseList:['隐患排查'],
+  speakers:[{name:'王工',title:'安全总监',bio:''},{name:'明哥',title:'副总裁',bio:''}]};
+ const merged=plain(formCtx.TrainingForm.mergeExtracted(current,extracted));
+ assert.equal(merged.values.topic,'安全生产月');
+ assert.equal(merged.values.headline,'','原文没有的字段清空，不保留示例');
+ assert.equal(merged.values.venue,'');
+ assert.equal(merged.values.format,'线上');
+ assert.equal(merged.values.lecturerMode,'feature','呈现方式不被识别结果改动');
+ assert.deepEqual(merged.values.speakers.map(s=>[s.name,s.title]),[['王工','安全总监'],['明哥','副总裁']]);
+ assert.ok(merged.values.speakers.every(s=>TrainingPoster.POSES[s.pose]&&TrainingPoster.OUTFITS[s.outfit]));
+ assert.deepEqual(merged.photos,[null,{name:'ming.jpg',dataUrl:'data:m'}],'同名讲师保留肖像');
+ const none=plain(formCtx.TrainingForm.mergeExtracted(current,{...extracted,speakers:[]}));
+ assert.deepEqual([none.values.speakers,none.photos],[[],[]]);
+ console.log('AI 识别结果整表替换、同名讲师保留肖像检查通过');
 })().catch(error=>{console.error(error);process.exitCode=1;});

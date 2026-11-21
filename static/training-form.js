@@ -5,7 +5,8 @@ const TrainingForm=(()=>{
  const STORE='poster-v2-training';
  const MAX_SPEAKERS=6;
  const PHOTO_TYPES=['image/png','image/jpeg','image/webp'];
- let root=null,speakers=[],refLimit={provider:'qwen',maxRefImages:3};
+ let root=null,speakers=[],refLimit={provider:'qwen',maxRefImages:3},extractor=null,aiFile=null;
+ const AI_TYPES=/\.(txt|md|markdown|docx)$/i;
  const q=selector=>root.querySelector(selector);
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const num=i=>String(i+1).padStart(2,'0');
@@ -15,6 +16,17 @@ const TrainingForm=(()=>{
  function skeleton(){
   const T=TrainingPoster;
   root.innerHTML=`
+  <div class="tf-ai-bar"><button type="button" id="tf-ai-toggle" class="secondary" aria-expanded="false" aria-controls="tf-ai-panel">AI 识别填入</button><span>上传培训通知或粘贴文字，自动填写下面的表单</span></div>
+  <div id="tf-ai-panel" class="tf-ai-panel" hidden>
+   <textarea id="tf-ai-text" class="tf-ai-text" maxlength="100000" aria-label="粘贴培训资料" placeholder="粘贴培训通知、方案或课程介绍……"></textarea>
+   <div class="tf-ai-actions">
+    <label class="quiet tf-upload">选择文件（txt / md / docx）<input type="file" id="tf-ai-file" accept=".txt,.md,.markdown,.docx,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label>
+    <span id="tf-ai-file-name" class="tf-ai-file" hidden></span><button type="button" id="tf-ai-file-clear" class="quiet" hidden>移除</button>
+    <button type="button" id="tf-ai-run" class="primary">开始识别</button>
+   </div>
+   <p class="tf-ai-note">选了文件时以文件为准。识别结果会替换下面整张表单（讲师肖像按姓名保留，呈现方式不变）；资料内容会发送给千问文本模型。</p>
+   <p id="tf-ai-status" class="tf-ai-status" role="status" hidden></p>
+  </div>
   <div class="tf-field"><label class="field-label" for="tf-topic">培训主题 <em class="tf-req">必填</em></label>
    <input id="tf-topic" class="size-select" maxlength="80" placeholder="例：2026 新任管理者领导力加速营"></div>
   <div class="tf-field"><span class="field-label">目标受众 <span>可多选</span></span>
@@ -37,12 +49,55 @@ const TrainingForm=(()=>{
   for(const chip of root.querySelectorAll('[data-audience]'))chip.onclick=()=>chip.setAttribute('aria-pressed',String(chip.getAttribute('aria-pressed')!=='true'));
   for(const chip of root.querySelectorAll('[data-format]'))chip.onclick=()=>setSingle('format',chip.dataset.format);
   for(const chip of root.querySelectorAll('[data-mode]'))chip.onclick=()=>{setSingle('mode',chip.dataset.mode);renderSpeakers();};
+  q('#tf-ai-toggle').onclick=()=>{const panel=q('#tf-ai-panel');panel.hidden=!panel.hidden;q('#tf-ai-toggle').setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)q('#tf-ai-text').focus();};
+  q('#tf-ai-file').onchange=async()=>{
+   const file=q('#tf-ai-file').files[0];q('#tf-ai-file').value='';if(!file)return;
+   if(!AI_TYPES.test(file.name)){aiStatus(/\.doc$/i.test(file.name)?'不支持旧版 .doc，请在 Word 中另存为 .docx。':'只支持 .txt、.md、.docx 文件，PDF 请复制文字粘贴进来。',true);return;}
+   if(file.size>10*1024*1024){aiStatus('文件请控制在 10 MB 以内。',true);return;}
+   const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('文件无法读取。'));reader.readAsDataURL(file);}).catch(e=>{aiStatus(e.message,true);return null;});
+   if(!data)return;
+   aiFile={name:file.name,data};showAiFile();aiStatus('');
+  };
+  q('#tf-ai-file-clear').onclick=()=>{aiFile=null;showAiFile();};
+  q('#tf-ai-run').onclick=runExtract;
+  root.addEventListener('input',event=>event.target.classList?.remove('tf-ai-filled'));
   q('#tf-add-speaker').onclick=()=>{
    if(speakers.length>=MAX_SPEAKERS)return;
    speakers.push({...TrainingPoster.defaultSpeaker(speakers.length),photo:null});renderSpeakers();
    root.querySelector('.tf-speaker:last-child input[data-key="name"]')?.focus();
   };
  }
+ function aiStatus(message,error){const status=q('#tf-ai-status');status.textContent=message;status.hidden=!message;status.classList.toggle('error',!!error);}
+ function showAiFile(){q('#tf-ai-file-name').textContent=aiFile?aiFile.name:'';q('#tf-ai-file-name').hidden=q('#tf-ai-file-clear').hidden=!aiFile;}
+ /* Replace the whole form with an extraction result. Portraits follow speakers with the same name. */
+ function mergeExtracted(current,extracted){
+  const e=extracted||{},old=current.values.speakers||[];
+  const people=(Array.isArray(e.speakers)?e.speakers:[]).map((s,i)=>({...TrainingPoster.defaultSpeaker(i),name:s.name||'',title:s.title||'',bio:s.bio||''}));
+  const photos=people.map(p=>{const i=p.name?old.findIndex((o,j)=>o.name===p.name&&current.photos[j]):-1;return i>=0?current.photos[i]:null;});
+  return {values:{topic:e.topic||'',audiences:Array.isArray(e.audiences)?e.audiences:[],date:e.date||'',time:e.time||'',venue:e.venue||'',
+   format:TrainingPoster.FORMATS[e.format]?e.format:'线下',headline:e.headline||'',sub:e.sub||'',cta:e.cta||'',
+   courseList:Array.isArray(e.courseList)?e.courseList:[],lecturerMode:current.values.lecturerMode,speakers:people},photos};
+ }
+ function markFilled(){
+  let count=0;
+  for(const id of ['#tf-topic','#tf-date','#tf-time','#tf-venue','#tf-headline','#tf-sub','#tf-cta','#tf-course']){const el=q(id);const on=!!el.value.trim();el.classList.toggle('tf-ai-filled',on);count+=on;}
+  for(const el of root.querySelectorAll('.tf-speaker [data-key=name],.tf-speaker [data-key=title],.tf-speaker [data-key=bio]')){const on=!!el.value.trim();el.classList.toggle('tf-ai-filled',on);count+=on;}
+  return count+(root.querySelector('[data-audience][aria-pressed="true"]')?1:0);
+ }
+ async function runExtract(){
+  if(!extractor)return;
+  const text=q('#tf-ai-text').value.trim();
+  if(!aiFile&&!text){aiStatus('请先粘贴文字或选择文件。',true);return;}
+  const run=q('#tf-ai-run');run.disabled=true;run.textContent='识别中…';aiStatus('正在识别，通常需要 5–20 秒。');
+  try{
+   const result=await extractor(aiFile?{file:aiFile}:{text});
+   restore(mergeExtracted(state(),result.values));
+   const count=markFilled();
+   aiStatus(`已识别并填入 ${count} 项${result.truncated?'（原文较长，只识别了前 2 万字）':''}。标黄的是识别出的内容，请核对后点「保存并更新提示词」；不满意可点「取消」恢复原表单。`);
+  }catch(e){aiStatus(e.message,true);}
+  finally{run.disabled=false;run.textContent='开始识别';}
+ }
+ function setExtractor(fn){extractor=fn;}
  function setSingle(name,value){for(const chip of root.querySelectorAll(`[data-${name}]`))chip.setAttribute('aria-pressed',String(chip.dataset[name]===value));}
  function single(name,fallback){return root.querySelector(`[data-${name}][aria-pressed="true"]`)?.dataset[name]||fallback;}
  function mode(){return single('mode','portrait');}
@@ -113,7 +168,9 @@ const TrainingForm=(()=>{
    speakers:speakers.map(s=>({name:s.name.trim(),title:s.title.trim(),bio:s.bio.trim(),pose:s.pose,outfit:s.outfit,photoName:s.photo?s.photo.name:''}))
   };
  }
+ function clearAiMarks(){for(const el of root.querySelectorAll('.tf-ai-filled'))el.classList.remove('tf-ai-filled');aiStatus('');}
  function write(values){
+  clearAiMarks();
   const v={...TrainingPoster.example(),...(values||{})};
   q('#tf-topic').value=v.topic||'';
   const audiences=Array.isArray(v.audiences)?v.audiences:[];
@@ -133,6 +190,7 @@ const TrainingForm=(()=>{
  function state(){return {values:read(),photos:speakers.map(s=>s.photo)};}
  function restore(saved){write(saved.values);saved.photos.forEach((photo,i)=>{if(speakers[i])speakers[i].photo=photo;});renderSpeakers();}
  function persist(){
+  clearAiMarks();
   const values=read();values.speakers=values.speakers.map(s=>({...s,photoName:''}));
   try{localStorage.setItem(STORE,JSON.stringify(values));}catch{}
  }
@@ -158,5 +216,5 @@ const TrainingForm=(()=>{
   hint.textContent=text;hint.hidden=!text;
  }
  function setRefLimit(settings){refLimit={provider:settings.provider,maxRefImages:settings.maxRefImages};if(root)updateHint();}
- return {mount,read,write,state,restore,persist,photo,photoCount,summary,setRefLimit};
+ return {mount,read,write,state,restore,persist,photo,photoCount,summary,setRefLimit,setExtractor,mergeExtracted};
 })();

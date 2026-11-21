@@ -287,3 +287,18 @@ textarea:focus{border-color:var(--green);outline:0}
 .style-thumb-empty{display:grid;place-items:center;font-size:12px;color:var(--muted);border:1px dashed var(--line);background:#f7f6f2}
 .style-name{font-size:11px;line-height:1.4;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .style-card[aria-pressed=true] .style-name{color:var(--green);font-weight:500}
+
+/* ---------- AI 识别填入 ---------- */
+.tf-ai-bar{display:flex;align-items:center;gap:12px;margin:14px 0 4px;font-size:11px;color:var(--muted)}
+.tf-ai-bar .secondary{margin:0;flex:none;padding:8px 14px;font-size:11px;background:var(--ink);color:var(--white)}
+.tf-ai-panel{margin:8px 0 6px;padding:12px;border:1px solid var(--line);border-radius:6px;background:#faf9f6;display:flex;flex-direction:column;gap:8px}
+.tf-ai-panel[hidden]{display:none}
+.tf-ai-text{min-height:110px;resize:vertical;background:var(--white)}
+.tf-ai-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tf-ai-actions .primary{margin:0 0 0 auto;padding:8px 16px}
+.tf-ai-file{font-size:11px;color:var(--ink);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tf-ai-note{margin:0;font-size:10px;line-height:1.6;color:var(--muted)}
+.tf-ai-status{margin:0;padding:7px 10px;border-radius:4px;background:#eceae4;font-size:11px;line-height:1.6;color:var(--ink)}
+.tf-ai-status.error{background:#f6e3df;color:#8a3226}
+.tf-ai-filled{background:#fbf3d9!important;border-color:#c8a45d!important}
+.key-hint-inline{font-size:10px;color:var(--muted);margin-left:6px}

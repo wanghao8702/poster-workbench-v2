@@ -20,6 +20,7 @@ import webbrowser
 import zipfile
 
 import qwen_client
+import training_extract
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / 'static'
@@ -31,6 +32,8 @@ MODEL = {'generate': 'ming-image-0.1-design', 'split': 'ming-image-0.1-design-la
 MAX_BODY = 64 * 1024 * 1024
 RATIOS = ('auto', '1:1', '9:16', '16:9', '5:2', '4:3', '3:4')
 PURPOSES = ('cover', 'training', 'free')
+EXTRACT_MAX_CHARS = 20000
+EXTRACT_FILE_LIMIT = 10 * 1024 * 1024
 JOBS = {}
 LOCK = threading.Lock()
 POOL = ThreadPoolExecutor(max_workers=2)
@@ -172,20 +175,65 @@ def run_job(job_id, kind, key, prompt, image, ratio='auto', qwen=None):
         update(job_id, status='done', elapsed=elapsed, images=images, usage=result.get('usage'), warnings=warnings,
                zip_url=f'/output/{job_id}/images.zip')
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode(errors='replace').replace(key, '[REDACTED]')
-        try:
-            parsed = json.loads(detail)
-            detail = (parsed.get('error') or {}).get('message') or parsed.get('message') or detail
-        except (ValueError, AttributeError): pass
-        detail = str(detail).replace(key, '[REDACTED]')
-        hints = {400: '请求参数被拒绝。', 401: 'API key 无效或已过期。', 403: '当前 key 无权调用模型。',
-                 404: '上游接口不存在，请检查 Base URL 和模型名。', 429: '额度不足或请求过于频繁。'}
-        update(job_id, status='error', error=f'HTTP {exc.code} · {hints.get(exc.code, "模型服务暂时不可用。")} {detail[:600]}')
+        update(job_id, status='error', error=http_error_message(exc, key))
     except Exception as exc:
         message = str(exc).replace(key, '[REDACTED]')
         update(job_id, status='error', error=f'请求失败：{message[:600]}')
     finally:
         key = None
+
+
+def http_error_message(exc, key):
+    """Readable Chinese message for an upstream HTTP error, with the API key removed."""
+    detail = exc.read().decode(errors='replace').replace(key, '[REDACTED]')
+    try:
+        parsed = json.loads(detail)
+        detail = (parsed.get('error') or {}).get('message') or parsed.get('message') or detail
+    except (ValueError, AttributeError): pass
+    detail = str(detail).replace(key, '[REDACTED]')
+    hints = {400: '请求参数被拒绝。', 401: 'API key 无效或已过期。', 403: '当前 key 无权调用模型。',
+             404: '上游接口不存在，请检查 Base URL 和模型名。', 429: '额度不足或请求过于频繁。'}
+    return f'HTTP {exc.code} · {hints.get(exc.code, "模型服务暂时不可用。")} {detail[:600]}'
+
+
+def _qwen_settings(payload, model_label):
+    key = payload.get('key', '')
+    key = key.strip() if isinstance(key, str) else ''
+    if not key or len(key) > 512 or '\n' in key or '\r' in key: raise ValueError('请先在「API 设置」填写千问 API Key。')
+    model = payload.get('model')
+    if not isinstance(model, str) or not re.fullmatch(r'[\w.\-]{1,100}', model): raise ValueError(f'{model_label}名无效。')
+    base_url = payload.get('base_url')
+    parsed = urllib.parse.urlparse(base_url) if isinstance(base_url, str) and len(base_url) <= 500 else None
+    if not parsed or parsed.scheme != 'https' or not parsed.netloc:
+        raise ValueError('千问 Base URL 必须是 https:// 开头的地址。')
+    return key, model, base_url
+
+
+def extract_request(payload):
+    """Handle /api/extract: read pasted text or an uploaded file and let the text model fill the training form."""
+    key, model, base_url = _qwen_settings(payload, '文本模型')
+    upload = payload.get('file')
+    if upload is not None:
+        if not isinstance(upload, dict) or not isinstance(upload.get('name'), str) or not isinstance(upload.get('data'), str):
+            raise ValueError('上传的文件数据无效。')
+        try: blob = base64.b64decode(upload['data'].split(',', 1)[-1], validate=True)
+        except (ValueError, TypeError): raise ValueError('文件无法读取，请重新选择。') from None
+        if len(blob) > EXTRACT_FILE_LIMIT: raise ValueError('文件请控制在 10 MB 以内。')
+        text = training_extract.read_document(upload['name'], blob)
+    else:
+        text = payload.get('text')
+        text = text.strip() if isinstance(text, str) else ''
+    if not text: raise ValueError('没有可识别的文字，请粘贴培训通知或上传文件。')
+    chars, truncated = len(text), len(text) > EXTRACT_MAX_CHARS
+    try:
+        values = training_extract.extract_training(key, model, base_url, text[:EXTRACT_MAX_CHARS])
+    except urllib.error.HTTPError as exc:
+        raise ValueError(http_error_message(exc, key)) from None
+    except ValueError as exc:
+        raise ValueError(str(exc).replace(key, '[REDACTED]')) from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise ValueError('无法连接文本模型服务，请检查网络后重试。') from None
+    return {'values': values, 'chars': chars, 'truncated': truncated}
 
 
 def validate_job_payload(payload):
@@ -268,7 +316,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if not self.local_request(): return self.respond(403, {'error': '请求来源不允许。'})
-        if self.path not in ('/api/jobs', '/api/assets/delete', '/api/assets/restore'): return self.respond(404, {'error': '接口不存在。'})
+        if self.path not in ('/api/jobs', '/api/extract', '/api/assets/delete', '/api/assets/restore'): return self.respond(404, {'error': '接口不存在。'})
         try:
             length = int(self.headers.get('Content-Length', '0'))
             if length <= 0 or length > MAX_BODY: return self.respond(413, {'error': '上传内容过大，图片请控制在 20 MB 以内。'})
@@ -277,6 +325,7 @@ class Handler(BaseHTTPRequestHandler):
             if self.path.startswith('/api/assets/'):
                 move_asset(payload.get('id'), restore=self.path.endswith('/restore'))
                 return self.respond(200, {'ok': True})
+            if self.path == '/api/extract': return self.respond(200, extract_request(payload))
             job = validate_job_payload(payload)
             kind = job['kind']
             with LOCK:

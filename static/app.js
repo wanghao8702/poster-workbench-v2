@@ -46,11 +46,12 @@ function genSettings(){
   const radio=document.querySelector(`input[name="gen-provider"][value="${saved.provider==='maas'?'maas':'qwen'}"]`);if(radio)radio.checked=true;
   if(typeof saved.model==='string'&&saved.model.trim())$('qwen-model').value=saved.model;
   if(typeof saved.baseUrl==='string'&&saved.baseUrl.trim())$('qwen-base-url').value=saved.baseUrl;
+  if(typeof saved.textModel==='string'&&saved.textModel.trim())$('text-model').value=saved.textModel;
  }
 }
 function rememberGenSettings(){
  const radio=document.querySelector('input[name="gen-provider"]:checked');
- try{localStorage.setItem(GEN_STORE,JSON.stringify({provider:radio?radio.value:'qwen',model:$('qwen-model').value.trim(),baseUrl:$('qwen-base-url').value.trim()}));}catch{}
+ try{localStorage.setItem(GEN_STORE,JSON.stringify({provider:radio?radio.value:'qwen',model:$('qwen-model').value.trim(),baseUrl:$('qwen-base-url').value.trim(),textModel:$('text-model').value.trim()}));}catch{}
 }
 function currentStyle(){
  const [source,id]=$('style-select').value.split(':');
@@ -101,7 +102,7 @@ function updateGenUI(){
  $('prompt-stale').hidden=!staleCategories.has(purpose);
  if(staleCategories.has(purpose))$('prompt-stale').querySelector('span').textContent=staleCategories.get(purpose);
  $('portrait-warning').hidden=!(purpose==='training'&&gen.provider!=='qwen'&&TrainingForm.photoCount()>0);
- $('qwen-fields').hidden=gen.provider!=='qwen';$('maas-gen-note').hidden=gen.provider==='qwen';
+ $('maas-gen-note').hidden=gen.provider==='qwen';
  if(mode==='generate')$('model-name').textContent=gen.model;
  keyState();
 }
@@ -117,6 +118,18 @@ $('recompile-prompt').onclick=recompileCurrent;
 for(const radio of document.querySelectorAll('input[name="gen-provider"]'))radio.onchange=()=>{rememberGenSettings();resyncPrompts();};
 $('qwen-model').onchange=()=>{rememberGenSettings();resyncPrompts();};
 $('qwen-base-url').onchange=rememberGenSettings;
+$('text-model').onchange=rememberGenSettings;
+/* AI 识别填入: the training form hands over pasted text or a file; the local server calls the Qwen text model. */
+TrainingForm.setExtractor(async body=>{
+ const key=$('qwen-key').value.trim();
+ // The dialog is modal, so the key panel behind it cannot be used until the dialog closes.
+ if(!key)throw new Error('还没有千问 API Key：请先点「取消」关闭弹窗，在右上角「API 设置」填写后再来识别（生图选 MaaS 时也需要它）。');
+ const response=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({...body,key,model:$('text-model').value.trim()||'qwen-plus',base_url:genSettings().baseUrl})});
+ let result={};try{result=await response.json();}catch{}
+ if(!response.ok)throw new Error(result.error||'识别失败，请确认本地服务仍在运行。');
+ return result;
+});
 
 function silentCompile(category){
  try{const result=compileFor(category);if(result)applyCompiled(category,result);}catch(e){}

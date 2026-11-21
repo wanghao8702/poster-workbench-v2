@@ -208,4 +208,40 @@ class WorkflowTest(unittest.TestCase):
         with self.assertRaises(ValueError): server.validate_job_payload(self.payload(references='x'))
 
 
+    def extract_payload(self, **extra):
+        data = {'key': KEY, 'model': 'qwen-plus', 'base_url': 'https://dashscope.aliyuncs.com/api/v1', 'text': '安全生产月培训通知'}
+        data.update(extra)
+        return data
+
+    def test_extract_from_text(self):
+        with patch('server.training_extract.extract_training', return_value={'topic': '安全生产月'}) as api:
+            result = server.extract_request(self.extract_payload())
+        self.assertEqual(result, {'values': {'topic': '安全生产月'}, 'chars': 9, 'truncated': False})
+        self.assertEqual(api.call_args.args[:4], (KEY, 'qwen-plus', 'https://dashscope.aliyuncs.com/api/v1', '安全生产月培训通知'))
+
+    def test_extract_from_gbk_txt_file_and_truncates(self):
+        long_text = '培训' * 15000
+        data = 'data:text/plain;base64,' + base64.b64encode(long_text.encode('gbk')).decode()
+        with patch('server.training_extract.extract_training', return_value={}) as api:
+            result = server.extract_request(self.extract_payload(text=None, file={'name': '通知.txt', 'data': data}))
+        self.assertTrue(result['truncated'])
+        self.assertEqual(result['chars'], 30000)
+        self.assertEqual(len(api.call_args.args[3]), server.EXTRACT_MAX_CHARS)
+
+    def test_extract_validation(self):
+        with self.assertRaisesRegex(ValueError, '没有可识别'): server.extract_request(self.extract_payload(text='   '))
+        with self.assertRaisesRegex(ValueError, 'https'): server.extract_request(self.extract_payload(base_url='http://x'))
+        with self.assertRaises(ValueError): server.extract_request(self.extract_payload(model='a b'))
+        with self.assertRaisesRegex(ValueError, 'API Key'): server.extract_request(self.extract_payload(key=''))
+        with self.assertRaisesRegex(ValueError, '支持'): server.extract_request(self.extract_payload(text=None, file={'name': 'a.pdf', 'data': 'JVBERi0='}))
+        with self.assertRaises(ValueError): server.extract_request(self.extract_payload(text=None, file={'name': 'a.txt', 'data': '%%%'}))
+
+    def test_extract_http_error_redacts_key(self):
+        error = urllib.error.HTTPError('https://dashscope.aliyuncs.com', 401, 'Unauthorized', {}, io.BytesIO(json.dumps({'error': {'message': f'bad {KEY}'}}).encode()))
+        with patch('server.training_extract.extract_training', side_effect=error):
+            with self.assertRaises(ValueError) as caught:
+                server.extract_request(self.extract_payload())
+        self.assertIn('HTTP 401', str(caught.exception))
+        self.assertNotIn(KEY, str(caught.exception))
+
 if __name__ == '__main__': unittest.main()

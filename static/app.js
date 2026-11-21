@@ -29,7 +29,10 @@ function ratioOf(category){return category===purpose?$('generate-ratio').value:(
 const GEN_STORE='poster-v2-gen';
 const QWEN_DEFAULTS={model:'qwen-image-3.0-pro',baseUrl:'https://dashscope.aliyuncs.com/api/v1'};
 const MAAS_GEN_MODEL='ming-image-0.1-design';
-const staleCategories=new Set();
+/* Categories whose prompt may no longer match what will be sent, with the reason shown to the user. */
+const staleCategories=new Map();
+const STALE_SETTINGS='生图设置已变，提示词中的讲师肖像 / 比例描述可能不再准确。';
+const STALE_HISTORY='当前提示词来自历史素材，与表单拼出的版本不同；讲师肖像仍按表单发送。';
 function genSettings(){
  const provider=document.querySelector('input[name="gen-provider"]:checked')?.value==='maas'?'maas':'qwen';
  const model=provider==='qwen'?($('qwen-model').value.trim()||QWEN_DEFAULTS.model):MAAS_GEN_MODEL;
@@ -87,7 +90,7 @@ function resyncPrompts(){
  for(const category of ['cover','training']){
   const stamp=lastCompiled[category];
   if(!stamp||stampMatches(category,stamp,gen))continue;
-  if(isHandEdited(editorOf(category).value,stamp.prompt))staleCategories.add(category);
+  if(isHandEdited(editorOf(category).value,stamp.prompt))staleCategories.set(category,STALE_SETTINGS);
   else silentCompile(category);
  }
  updateGenUI();
@@ -96,6 +99,7 @@ function updateGenUI(){
  const gen=genSettings();
  TrainingForm.setRefLimit(gen);
  $('prompt-stale').hidden=!staleCategories.has(purpose);
+ if(staleCategories.has(purpose))$('prompt-stale').querySelector('span').textContent=staleCategories.get(purpose);
  $('portrait-warning').hidden=!(purpose==='training'&&gen.provider!=='qwen'&&TrainingForm.photoCount()>0);
  $('qwen-fields').hidden=gen.provider!=='qwen';$('maas-gen-note').hidden=gen.provider==='qwen';
  if(mode==='generate')$('model-name').textContent=gen.model;
@@ -524,12 +528,14 @@ async function previewOldLayers(image,item){
 }
 async function openAsset(item){
  if(busy)return;
- clearStyle();
  setBusy(true,'load');$('busy-title').textContent='正在载入历史素材';
  try{
   if(item.kind==='generate'){
    await loadSource(item.images[0].url,'历史生成图片');sample=false;
    promptEditor().value=item.prompt.replace(/^【画布比例】[^\n]*\n/,'');countPrompt();
+   const compiled=lastCompiled[purpose];
+   if(compiled&&promptEditor().value!==compiled.prompt)staleCategories.set(purpose,STALE_HISTORY);
+   updateGenUI();
    const promptRatio=item.prompt.match(/^【画布比例】(1:1|9:16|16:9|5:2|4:3|3:4)/)?.[1];
    const ratio=OUTPUT_SIZES[item.ratio]?item.ratio:(promptRatio||'auto');
    $('generate-ratio').value=ratio;outputRatio=ratio;$('output-ratio').value=ratio;setMode('split');

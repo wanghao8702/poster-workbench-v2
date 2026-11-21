@@ -111,7 +111,7 @@
 │   └── style.css
 ├── server.py                # Python 本地服务：任务队列、素材库、MaaS 调用
 ├── qwen_client.py           # 千问 / 百炼图像接口
-├── test_server.py / test_qwen.py / test_training.cjs / test_layers.cjs
+├── test_server.py / test_qwen.py / test_training.cjs / test_layers.cjs / test_app.cjs
 ├── vendor/punk-skill/       # 第三方风格规则来源与许可
 ├── docs/                    # 设计文档与实施计划
 ├── 启动.bat                  # Windows 启动入口
@@ -124,6 +124,7 @@
 python -m unittest test_server.py test_qwen.py
 node test_training.cjs
 node test_layers.cjs
+node test_app.cjs
 node --check static/app.js   # 其余 static/*.js 同理
 ```
 

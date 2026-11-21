@@ -111,8 +111,8 @@ const TrainingForm=(()=>{
     <div class="tf-speaker-body">
      <div class="tf-photo"${showLook?'':' hidden'}>
       <div class="tf-thumb">${speaker.photo?`<img alt="讲师 ${num(i)} 肖像" src="${esc(speaker.photo.dataUrl)}">`:'<span>肖像</span>'}</div>
-      <label class="quiet tf-upload">${speaker.photo?'更换':'上传肖像'}<input type="file" accept="image/png,image/jpeg,image/webp"></label>
-      ${speaker.photo?'<button type="button" class="quiet tf-photo-clear">移除</button>':''}
+      <div class="tf-photo-actions"><label class="quiet tf-upload">${speaker.photo?'更换':'上传肖像'}<input type="file" accept="image/png,image/jpeg,image/webp"></label>
+      ${speaker.photo?'<button type="button" class="quiet tf-photo-clear">移除</button>':''}</div>
      </div>
      <div class="tf-speaker-fields">
       <div class="tf-pair"><input class="size-select" data-key="name" maxlength="20" placeholder="姓名" aria-label="讲师 ${num(i)} 姓名" value="${esc(speaker.name)}">

@@ -4,7 +4,7 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="海报工作台 V2：生成企业培训海报与封面，拆解图层，拖动调整后导出。">
   <title>海报工作台 V2 · 培训海报</title>
-  <link rel="stylesheet" href="/style.css"><script src="/punk-cover.js" defer></script><script src="/training-prompt.js" defer></script><script src="/config.js" defer></script><script src="/app.js" defer></script>
+  <link rel="stylesheet" href="/style.css"><script src="/punk-cover.js" defer></script><script src="/training-prompt.js" defer></script><script src="/config.js" defer></script><script src="/training-form.js" defer></script><script src="/app.js" defer></script>
 </head>
 <body>
 <header class="topbar">
@@ -42,27 +42,14 @@
         <button type="button" class="category-button" role="radio" aria-checked="true" data-purpose="training"><strong>培训海报</strong><span>企业培训</span></button>
         <button type="button" class="category-button" role="radio" aria-checked="false" data-purpose="free"><strong>自由创作</strong><span>直接填词</span></button>
       </div>
-      <details id="generation-settings" class="generation-settings"><summary><span id="category-setting-label">风格与标题设置</span><span>展开 ↗</span></summary>
-      <div class="settings-content">
-      <div id="style-settings">
-      <label class="field-label" for="style-select">风格 <span id="style-source"></span></label>
-      <select id="style-select" class="size-select"><option value="">不套风格 · 自由描述</option></select>
-      <p id="style-description" class="field-note style-description" hidden></p>
-      <div id="cover-fields" class="punk-fields" hidden>
-        <label class="field-label" for="cover-title">封面标题 <span id="title-hint"></span></label><input id="cover-title" class="size-select" maxlength="120" placeholder="例如：生成之后，还能接着改">
-        <label class="field-label" for="cover-context">补充描述 <span id="context-hint">可选</span></label><input id="cover-context" class="size-select" maxlength="800" placeholder="主题、读者或希望表现的画面">
-      </div>
-      </div>
-      <p class="field-note punk-source">风格规则来源：<a href="https://github.com/adrianpunk/Punk-Skill/tree/v1.0.0-mit" target="_blank" rel="noopener noreferrer">Punk Skill ↗</a> · <a href="/punk-license.txt" target="_blank">许可</a></p>
-      </div></details>
+      <div id="settings-row" class="settings-row"><button type="button" id="open-settings" class="secondary settings-button" aria-haspopup="dialog">填写培训信息 ↗</button><span id="settings-summary" class="settings-summary"></span></div>
       <section id="prompt-details" class="prompt-details">
 
         <div class="prompt-heading"><label id="prompt-label" for="generate-prompt">画面描述</label><span id="prompt-count">0 字</span></div>
         <div id="creative-presets" class="preset-row" hidden><button data-creative="landscape" class="chip">实例：湖畔晨光</button><button data-creative="illustration" class="chip">实例：橘猫咖啡店</button></div>
-        <textarea id="cover-prompt" class="category-prompt" maxlength="16000" placeholder="输入封面提示词，或展开上方设置选择风格。" hidden></textarea>
+        <textarea id="cover-prompt" class="category-prompt" maxlength="16000" placeholder="输入封面提示词，或点上方「风格与标题设置」选择风格。" hidden></textarea>
         <textarea id="free-prompt" class="category-prompt" maxlength="16000" placeholder="直接输入你想生成的画面，也可以载入上面的实例。" hidden></textarea>
         <textarea class="category-prompt" id="generate-prompt" maxlength="16000" placeholder="填写培训信息后会自动生成完整提示词，也可以直接修改。"></textarea>
-        <button id="apply-style" class="secondary" hidden>按当前风格重新拼提示词</button>
       </section>
       <div class="generation-footer"><div class="ratio-row"><label class="field-label" for="generate-ratio">画面比例</label>
       <select id="generate-ratio" class="size-select">
@@ -150,4 +137,25 @@
   <button role="menuitem" data-action="reset">复位位置和大小</button>
   <button role="menuitem" data-action="download">下载这一层</button>
 </div>
+<dialog id="cover-dialog" class="settings-dialog" aria-labelledby="cover-dialog-title">
+  <div class="dialog-head"><h2 id="cover-dialog-title">封面风格与标题</h2><button type="button" class="quiet dialog-x" data-close aria-label="关闭">✕</button></div>
+  <div class="dialog-body">
+    <label class="field-label" for="style-select">风格 <span id="style-source"></span></label>
+    <select id="style-select" class="size-select"><option value="">不套风格 · 自由描述</option></select>
+    <p id="style-description" class="field-note style-description" hidden></p>
+    <div id="cover-fields" class="punk-fields" hidden>
+      <label class="field-label" for="cover-title">封面标题</label><input id="cover-title" class="size-select" maxlength="120" placeholder="例如：生成之后，还能接着改">
+      <label class="field-label" for="cover-context">补充描述 <span>可选</span></label><input id="cover-context" class="size-select" maxlength="800" placeholder="主题、读者或希望表现的画面">
+    </div>
+    <p class="field-note punk-source">选「不套风格」时保存不会改动提示词。风格规则来源：<a href="https://github.com/adrianpunk/Punk-Skill/tree/v1.0.0-mit" target="_blank" rel="noopener noreferrer">Punk Skill ↗</a> · <a href="/punk-license.txt" target="_blank">许可</a></p>
+  </div>
+  <p class="dialog-error" role="alert" hidden></p>
+  <div class="dialog-actions"><button type="button" class="quiet" data-close>取消</button><button type="button" class="primary" data-save>保存并更新提示词</button></div>
+</dialog>
+<dialog id="training-dialog" class="settings-dialog" aria-labelledby="training-dialog-title">
+  <div class="dialog-head"><h2 id="training-dialog-title">培训信息</h2><button type="button" class="quiet dialog-x" data-close aria-label="关闭">✕</button></div>
+  <div id="training-form" class="dialog-body"></div>
+  <p class="dialog-error" role="alert" hidden></p>
+  <div class="dialog-actions"><button type="button" class="quiet" data-close>取消</button><button type="button" class="primary" data-save>保存并更新提示词</button></div>
+</dialog>
 </body></html>

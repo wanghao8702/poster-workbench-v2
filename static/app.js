@@ -14,23 +14,60 @@ function initialLayerOrder(items){
 let outputRatio = 'auto';
 let assets = [], libraryRequest = 0;
 let deletedAssets = [];
-let punkStyles = [], appliedStyleSignature = '', purpose = 'training';
+let punkStyles = [], purpose = 'training';
 const PURPOSE_RATIO={cover:'5:2',training:'3:4',free:'auto'};
 const PROMPT_IDS={cover:'cover-prompt',training:'generate-prompt',free:'free-prompt'};
+const DIALOG_IDS={cover:'cover-dialog',training:'training-dialog'};
+const SETTINGS_LABEL={cover:'风格与标题设置',training:'填写培训信息'};
+const ratioDrafts={};
+/* The prompt each dialog last produced, with the generation settings it was compiled for. */
+const lastCompiled={cover:null,training:null};
+let dialogSnapshot=null;
 function promptEditor(){return $(PROMPT_IDS[purpose]);}
-const categoryDrafts = {};
-$('generation-settings').addEventListener('toggle',()=>{$('generation-settings').querySelector('summary span:last-child').textContent=$('generation-settings').open?'收起 ↗':'展开 ↗';});
-const STYLE_FIELDS=['style-select','cover-title','cover-context','generate-ratio'];
-const styleSignature=()=>JSON.stringify(STYLE_FIELDS.map(id=>$(id).value));
+function editorOf(category){return $(PROMPT_IDS[category]);}
+function ratioOf(category){return category===purpose?$('generate-ratio').value:(ratioDrafts[category]||PURPOSE_RATIO[category]);}
+// Replaced by the API settings panel; until then generation defaults to Qwen.
+function genSettings(){return {provider:'qwen',model:'qwen-image-3.0-pro',baseUrl:'https://dashscope.aliyuncs.com/api/v1',maxRefImages:3};}
 function currentStyle(){
  const [source,id]=$('style-select').value.split(':');
  if(source==='punk'){const style=punkStyles.find(item=>item.id===id);return style?{source,id,style}:null;}
  return null;
 }
+function isHandEdited(current,last){return current.trim()!==''&&current!==(last??'');}
+/* Compile the saved dialog values of a category. Returns null when the category has nothing to compile. */
+function compileFor(category){
+ const gen=genSettings(),ratio=ratioOf(category);
+ const stamp={ratio,provider:gen.provider,maxRefImages:gen.maxRefImages};
+ if(category==='cover'){
+  const chosen=currentStyle();if(!chosen)return null;
+  return {prompt:PunkCover.compile(chosen.style,$('cover-title').value,$('cover-context').value,ratio),references:[],stamp};
+ }
+ if(category==='training'){
+  const result=TrainingPoster.compile(TrainingForm.read(),{ratio,provider:gen.provider,maxRefImages:gen.maxRefImages});
+  return {...result,stamp};
+ }
+ return null;
+}
+function applyCompiled(category,result){
+ if(result.prompt.length>16000)throw new Error('提示词超过 16000 字，请精简课程内容或讲师资历。');
+ editorOf(category).value=result.prompt;
+ lastCompiled[category]={prompt:result.prompt,...result.stamp};
+ if(category===purpose){countPrompt();updateStyleUI();}
+}
+function silentCompile(category){
+ try{const result=compileFor(category);if(result)applyCompiled(category,result);}catch(e){}
+}
+function settingsSummary(category){
+ if(category==='training')return TrainingForm.summary();
+ if(category==='cover'){const chosen=currentStyle();if(!chosen)return '未选风格 · 自由描述';const title=$('cover-title').value.trim();return [chosen.style.name,title.length>12?title.slice(0,12)+'…':title].filter(Boolean).join(' · ');}
+ return '';
+}
 function setPurpose(next){
  purpose=Object.hasOwn(PURPOSE_RATIO,next)?next:'training';
  for(const chip of document.querySelectorAll('[data-purpose]'))chip.setAttribute('aria-checked',String(chip.dataset.purpose===purpose));
- $('generation-settings').hidden=purpose!=='cover';
+ $('settings-row').hidden=!DIALOG_IDS[purpose];
+ $('open-settings').textContent=`${SETTINGS_LABEL[purpose]||''} ↗`;
+ $('settings-summary').textContent=settingsSummary(purpose);
  for(const [category,id] of Object.entries(PROMPT_IDS))$(id).hidden=category!==purpose;
  $('prompt-label').htmlFor=PROMPT_IDS[purpose];
 }
@@ -40,32 +77,51 @@ function updateStyleUI(){
  $('style-source').textContent=chosen?'Punk Skill':'';
  const description=chosen?chosen.style.description||'':'';
  $('style-description').textContent=description;$('style-description').hidden=!description;
- $('prompt-label').textContent=purpose==='free'?'自由创作提示词':purpose==='training'||chosen?'完整提示词（可修改）':'画面描述';
- $('creative-presets').hidden=purpose!=='free';$('apply-style').hidden=!(purpose==='cover'&&chosen);
+ $('prompt-label').textContent=purpose==='free'?'自由创作提示词':lastCompiled[purpose]?'完整提示词（可修改）':'画面描述';
+ $('creative-presets').hidden=purpose!=='free';
 }
-function applyStyle(){
- const chosen=currentStyle();if(!chosen)return false;
- try{
-  const prompt=PunkCover.compile(chosen.style,$('cover-title').value,$('cover-context').value,$('generate-ratio').value);
-  if(prompt.length>16000)throw new Error('描述太长，请缩短补充内容。');
-  promptEditor().value=prompt;appliedStyleSignature=styleSignature();countPrompt();return true;
- }catch(e){notify(e.message,true);return false;}
+$('style-select').onchange=updateStyleUI;
+function dialogError(category,message){const error=$(DIALOG_IDS[category]).querySelector('.dialog-error');error.textContent=message;error.hidden=!message;}
+function openSettings(){
+ const category=purpose,dialog=$(DIALOG_IDS[category]);if(!dialog||busy)return;
+ dialogSnapshot={category,data:category==='cover'?['style-select','cover-title','cover-context'].map(id=>$(id).value):TrainingForm.state()};
+ dialogError(category,'');
+ if(category==='training')TrainingForm.setRefLimit(genSettings());
+ dialog.showModal();
 }
-function clearStyle(){$('style-select').value='';appliedStyleSignature='';updateStyleUI();}
-$('style-select').onchange=()=>{
+function closeSettings(save){
+ const saved=dialogSnapshot;if(!saved)return;
+ const {category}=saved,dialog=$(DIALOG_IDS[category]);
+ if(save){
+  let result;
+  try{result=compileFor(category);if(result&&result.prompt.length>16000)throw new Error('提示词超过 16000 字，请精简课程内容或讲师资历。');}
+  catch(e){dialogError(category,e.message);return;}
+  if(result){
+   if(isHandEdited(editorOf(category).value,lastCompiled[category]?.prompt)&&!confirm('将覆盖你对提示词的手动修改，确定吗？'))return;
+   applyCompiled(category,result);
+  }
+  if(category==='training')TrainingForm.persist();
+ }else if(category==='cover'){['style-select','cover-title','cover-context'].forEach((id,i)=>{$(id).value=saved.data[i];});updateStyleUI();}
+ else TrainingForm.restore(saved.data);
+ dialogSnapshot=null;
+ $('settings-summary').textContent=settingsSummary(category);
  updateStyleUI();
-};
+ dialog.close();
+}
+$('open-settings').onclick=openSettings;
+for(const dialog of document.querySelectorAll('.settings-dialog')){
+ dialog.addEventListener('cancel',event=>{event.preventDefault();closeSettings(false);});
+ dialog.addEventListener('close',()=>{if(dialogSnapshot)closeSettings(false);$('open-settings').focus();});
+ for(const button of dialog.querySelectorAll('[data-close]'))button.onclick=()=>closeSettings(false);
+ dialog.querySelector('[data-save]').onclick=()=>closeSettings(true);
+}
 for(const chip of document.querySelectorAll('[data-purpose]'))chip.onclick=()=>{
  const next=chip.dataset.purpose;if(next===purpose)return;
- categoryDrafts[purpose]={fields:STYLE_FIELDS.map(id=>$(id).value),prompt:promptEditor().value,signature:appliedStyleSignature};
+ ratioDrafts[purpose]=$('generate-ratio').value;
  setPurpose(next);
- const saved=categoryDrafts[next];
- if(saved){STYLE_FIELDS.forEach((id,i)=>$(id).value=saved.fields[i]);promptEditor().value=saved.prompt;appliedStyleSignature=saved.signature;}
- else{
-  $('style-select').value='';$('cover-title').value='';$('cover-context').value='';
-  $('generate-ratio').value=PURPOSE_RATIO[next];appliedStyleSignature='';
- }
- $('generation-settings').open=false;updateStyleUI();countPrompt();
+ $('generate-ratio').value=ratioDrafts[next]||PURPOSE_RATIO[next];
+ if(next==='training'&&!editorOf('training').value.trim())silentCompile('training');
+ updateStyleUI();countPrompt();
 };
 const creativeExamples={
  landscape:'生成一张唯美的摄影作品：清晨的湖畔，一座木屋与远山倒映在平静水面，薄雾缓缓升起，柔和的金色晨光穿过松林。画面真实、安静、细腻，有自然的空间层次与电影摄影质感。不添加文字、标志或水印。',
@@ -73,7 +129,6 @@ const creativeExamples={
 };
 for(const button of document.querySelectorAll('[data-creative]'))button.onclick=()=>{promptEditor().value=creativeExamples[button.dataset.creative];countPrompt();promptEditor().focus();};
 $('generate-ratio').onchange=()=>{};
-$('apply-style').onclick=applyStyle;
 const splitPrompt = `请理解这张图片的实际内容、视觉层级和遮挡关系，将其拆分成可独立移动、缩放、隐藏和复用的 RGBA PNG 图层。
 
 【细分原则】
@@ -268,7 +323,6 @@ async function asDataURL(url) {
 const delay = ms => new Promise(resolve=>setTimeout(resolve,ms));
 async function submit(kind) {
  if(busy)return;
- if(kind==='generate'&&currentStyle()&&(styleSignature()!==appliedStyleSignature||!promptEditor().value.trim())&&!applyStyle())return;
  let prompt=(kind==='generate'?promptEditor():$('split-prompt')).value.trim();
  if(!prompt){notify('请先填写提示词。',true);return;}
  const ratio=$('generate-ratio').value;
@@ -796,7 +850,9 @@ $('reverse-stack').onclick=()=>{remember();manualOrder=displayLayers().map(layer
 $('select-all').onclick=()=>{remember();layers.forEach(layer=>{layer.visible=true;});refreshSelection();renderComposition();};
 $('export-composite').onclick=()=>{const output=document.createElement('canvas');paintComposition(output);output.toBlob(blob=>{if(!blob)return;const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='poster-v2.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);},'image/png');};
 async function init(){
- setPurpose('training');$('generate-ratio').value=PURPOSE_RATIO.training;updateStyleUI();
+ TrainingForm.mount($('training-form'));
+ setPurpose('training');$('generate-ratio').value=PURPOSE_RATIO.training;
+ silentCompile('training');updateStyleUI();countPrompt();
  await Promise.allSettled([
   (async()=>{
    try{

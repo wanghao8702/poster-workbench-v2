@@ -44,14 +44,53 @@ class WorkflowTest(unittest.TestCase):
             self.assertNotIn(KEY, archive.read('manifest.json').decode())
         self.assertNotIn(KEY, json.dumps(server.JOBS['test']))
 
-    def test_local_configuration_loads_test_key(self):
+    def config_response(self):
         handler = object.__new__(server.Handler)
         handler.path = '/api/config'
         handler.local_request = lambda: True
         handler.respond = Mock()
-        with patch.object(Path, 'is_file', return_value=True), patch.object(Path, 'read_text', return_value=KEY):
-            handler.do_GET()
-        handler.respond.assert_called_once_with(200, {'runtime': 'local', 'default_key': KEY, 'default_qwen_key': KEY})
+        handler.do_GET()
+        status, body = handler.respond.call_args.args
+        self.assertEqual(status, 200)
+        return body
+
+    def patch_files(self, env=None, maas=None, qwen=None):
+        files = {'.env': env, '.local-key': maas, '.local-qwen-key': qwen}
+        for name, text in files.items():
+            if text is not None: (self.output / name).write_text(text, encoding='utf-8')
+        stack = [patch.object(server, 'ENV_FILE', self.output / '.env'), patch.object(server, 'KEY_FILE', self.output / '.local-key'),
+                 patch.object(server, 'QWEN_KEY_FILE', self.output / '.local-qwen-key')]
+        for p in stack: p.start(); self.addCleanup(p.stop)
+
+    def test_load_env_parses_comments_quotes_and_bom(self):
+        path = self.output / '.env'
+        path.write_text('\ufeff# 注释\nQWEN_API_KEY = sk-abc \nexport MAAS_API_KEY="m k"\nQWEN_TEXT_MODEL=\'qwen-flash\'\nBAD LINE\nEMPTY=\nURL=https://a/b#frag # 行尾注释\n', encoding='utf-8')
+        self.assertEqual(server.load_env(path), {'QWEN_API_KEY': 'sk-abc', 'MAAS_API_KEY': 'm k', 'QWEN_TEXT_MODEL': 'qwen-flash', 'EMPTY': '', 'URL': 'https://a/b#frag'})
+        self.assertEqual(server.load_env(self.output / 'missing.env'), {})
+
+    def test_config_reads_env(self):
+        self.patch_files(env='MAAS_API_KEY=m1\nQWEN_API_KEY=q1\nGEN_PROVIDER=maas\nQWEN_IMAGE_MODEL=qwen-image-2.1-pro\n'
+                             'QWEN_TEXT_MODEL=qwen-flash\nQWEN_BASE_URL=https://ws1.cn-beijing.maas.aliyuncs.com/api/v1\n')
+        self.assertEqual(self.config_response(), {'runtime': 'local', 'source': '.env', 'default_key': 'm1', 'default_qwen_key': 'q1',
+            'gen_provider': 'maas', 'qwen_image_model': 'qwen-image-2.1-pro', 'qwen_text_model': 'qwen-flash',
+            'qwen_base_url': 'https://ws1.cn-beijing.maas.aliyuncs.com/api/v1'})
+
+    def test_config_falls_back_to_legacy_key_files(self):
+        self.patch_files(env='QWEN_API_KEY=\n', maas=KEY + '\n', qwen='q-old')
+        body = self.config_response()
+        self.assertEqual((body['default_key'], body['default_qwen_key'], body['source']), (KEY, 'q-old', '.local-key'))
+        self.assertEqual((body['gen_provider'], body['qwen_image_model'], body['qwen_text_model'], body['qwen_base_url']), ('', '', '', ''))
+
+    def test_config_drops_invalid_settings(self):
+        self.patch_files(env='GEN_PROVIDER=openai\nQWEN_IMAGE_MODEL=a b\nQWEN_BASE_URL=http://x\nMAAS_API_KEY=' + 'x' * 600 + '\n')
+        body = self.config_response()
+        self.assertEqual((body['gen_provider'], body['qwen_image_model'], body['qwen_base_url'], body['source']), ('', '', '', ''))
+
+    def test_env_port(self):
+        self.patch_files(env='PORT=8790\n')
+        self.assertEqual(server.env_port(), 8790)
+        (self.output / '.env').write_text('PORT=abc\n', encoding='utf-8')
+        self.assertEqual(server.env_port(), 8765)
 
     def test_split_multipart_has_original_image_and_exports_all_layers(self):
         with patch('server.urllib.request.urlopen', return_value=self.reply(2)) as api:

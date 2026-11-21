@@ -122,4 +122,18 @@ const plain=v=>JSON.parse(JSON.stringify(v));
  const none=plain(formCtx.TrainingForm.mergeExtracted(current,{...extracted,speakers:[]}));
  assert.deepEqual([none.values.speakers,none.photos],[[],[]]);
  console.log('AI 识别结果整表替换、同名讲师保留肖像检查通过');
+
+ // test_apply_env_settings_overrides_browser_values
+ // Radios in one group behave like the browser: checking one unchecks the rest.
+ const radios={};const radio=(value,on)=>{let state=on;return {value,get checked(){return state;},set checked(v){if(v)for(const r of Object.values(radios))if(r!==this)r.checked=false;state=v;}};};
+ radios.qwen=radio('qwen',true);radios.maas=radio('maas',false);
+ const envCtx=sandbox({document:{querySelector:sel=>radios[(sel.match(/value="(\w+)"/)||[])[1]]||null}});
+ for(const [id,v] of Object.entries({'qwen-model':'qwen-image-3.0-pro','text-model':'qwen-plus','qwen-base-url':'https://dashscope.aliyuncs.com/api/v1'}))envCtx.els[id]=element(v);
+ vm.runInContext(slice('function applyEnvSettings(','function rememberGenSettings('),envCtx);
+ assert.equal(envCtx.applyEnvSettings({gen_provider:'',qwen_image_model:'',qwen_text_model:'',qwen_base_url:''}),false,'.env 没写的项不改页面');
+ assert.equal(envCtx.els['text-model'].value,'qwen-plus');
+ assert.equal(envCtx.applyEnvSettings({gen_provider:'maas',qwen_image_model:'qwen-image-2.1-pro',qwen_text_model:'qwen-flash',qwen_base_url:'https://ws1.cn-beijing.maas.aliyuncs.com/api/v1'}),true);
+ assert.deepEqual([radios.maas.checked,radios.qwen.checked],[true,false]);
+ assert.deepEqual(['qwen-model','text-model','qwen-base-url'].map(id=>envCtx.els[id].value),['qwen-image-2.1-pro','qwen-flash','https://ws1.cn-beijing.maas.aliyuncs.com/api/v1']);
+ console.log('.env 里的生图与文本模型设置覆盖页面默认值检查通过');
 })().catch(error=>{console.error(error);process.exitCode=1;});

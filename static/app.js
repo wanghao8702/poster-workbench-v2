@@ -49,6 +49,17 @@ function genSettings(){
   if(typeof saved.textModel==='string'&&saved.textModel.trim())$('text-model').value=saved.textModel;
  }
 }
+/* Settings written in .env win over what this browser remembered: the file is the shared configuration. */
+function applyEnvSettings(config){
+ let changed=false;
+ const set=(id,value)=>{if(value&&$(id).value!==value){$(id).value=value;changed=true;}};
+ if(config.gen_provider){
+  const radio=document.querySelector(`input[name="gen-provider"][value="${config.gen_provider}"]`);
+  if(radio&&!radio.checked){radio.checked=true;changed=true;}
+ }
+ set('qwen-model',config.qwen_image_model);set('text-model',config.qwen_text_model);set('qwen-base-url',config.qwen_base_url);
+ return changed;
+}
 function rememberGenSettings(){
  const radio=document.querySelector('input[name="gen-provider"]:checked');
  try{localStorage.setItem(GEN_STORE,JSON.stringify({provider:radio?radio.value:'qwen',model:$('qwen-model').value.trim(),baseUrl:$('qwen-base-url').value.trim(),textModel:$('text-model').value.trim()}));}catch{}
@@ -1027,7 +1038,8 @@ async function init(){
     let loaded=false;
     if(config.default_key&&!$('api-key').value.trim()){$('api-key').value=config.default_key;loaded=true;}
     if(config.default_qwen_key&&!$('qwen-key').value.trim()){$('qwen-key').value=config.default_qwen_key;loaded=true;}
-    if(loaded)$('key-note').textContent='已载入本机默认 Key（.local-key / .local-qwen-key），仅用于本地测试。这里的修改不会覆盖本机配置。';
+    if(loaded)$('key-note').textContent=`已从本机 ${config.source==='.env'?'.env':'.local-key 文件'} 载入 Key。这里的修改只在当前页面生效，不会写回配置文件。`;
+    if(applyEnvSettings(config)){updateGenUI();resyncPrompts();}
    }catch(e){notify('服务连接失败，请确认本地服务仍在运行后刷新页面。',true);}
    keyState();
   })()

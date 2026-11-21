@@ -67,7 +67,20 @@
 
 - Base URL 带 `/api/v1` 时走百炼原生图像接口；百炼官方域名的 `/compatible-mode/v1` 地址也会自动改走原生接口（兼容模式没有图像接口）。只接受 `https://` 地址。
 - 生图接口、模型和 Base URL 会记在浏览器里；**Key 只保存在当前页面**，刷新后需重新填写。
-- 本机测试可以把 Key 分别写进项目根目录的 `.local-key`（MaaS）和 `.local-qwen-key`（千问），启动后会自动填入。这两个文件已加入 `.gitignore`，不要提交。
+- **推荐把 Key 和设置写进项目根目录的 `.env`**（从 `.env.example` 复制，已加入 `.gitignore`，不会被提交）：
+
+  | 变量 | 作用 | 默认 |
+  | --- | --- | --- |
+  | `QWEN_API_KEY` | 百炼 Key：千问生图、AI 识别填入 | 空 |
+  | `MAAS_API_KEY` | MaaS Key：拆层，以及选 MaaS 时的生图 | 空 |
+  | `GEN_PROVIDER` | 生图接口：`qwen` / `maas` | `qwen` |
+  | `QWEN_IMAGE_MODEL` | 千问生图模型 | `qwen-image-3.0-pro` |
+  | `QWEN_TEXT_MODEL` | 千问文本模型 | `qwen-plus` |
+  | `QWEN_BASE_URL` | 百炼地址 | `https://dashscope.aliyuncs.com/api/v1` |
+  | `PORT` | 本地服务端口 | `8765` |
+
+  改完刷新浏览器即可生效（只有 `PORT` 需要重启 `启动.bat`）。`.env` 里填了的设置会覆盖浏览器记住的值；在页面「API 设置」里临时改 Key 只对当前页面有效，不会写回 `.env`。
+- 旧版的 `.local-key`（MaaS）和 `.local-qwen-key`（千问）仍然可用，`.env` 里对应的 Key 为空时才读它们。
 
 比例与千问出图尺寸：
 

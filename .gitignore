@@ -13,3 +13,4 @@ node_modules/
 cloudflare/deployment.json
 .local-qwen-key
 .superpowers/
+!.env.example

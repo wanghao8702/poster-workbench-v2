@@ -25,6 +25,7 @@ import training_extract
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / 'static'
 OUTPUT = ROOT / 'output'
+ENV_FILE = ROOT / '.env'
 KEY_FILE = ROOT / '.local-key'
 QWEN_KEY_FILE = ROOT / '.local-qwen-key'
 API = 'https://maas-api.antdigital.com/v1'
@@ -183,6 +184,51 @@ def run_job(job_id, kind, key, prompt, image, ratio='auto', qwen=None):
         key = None
 
 
+def load_env(path):
+    """Parse a simple KEY=VALUE .env file (comments, `export`, quotes, BOM). Missing file -> {}."""
+    values = {}
+    try: text = path.read_text(encoding='utf-8-sig')
+    except (OSError, UnicodeDecodeError): return values
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith('#'): continue
+        if line.startswith('export '): line = line[7:].lstrip()
+        name, sep, value = line.partition('=')
+        name, value = name.strip(), value.strip()
+        if not sep or not re.fullmatch(r'[A-Za-z_]\w*', name): continue
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in '"\'': value = value[1:-1]
+        else: value = re.sub(r'\s+#.*$', '', value)
+        values[name] = value
+    return values
+
+
+def _valid_key(value):
+    return value if isinstance(value, str) and 0 < len(value) <= 512 and '\n' not in value and '\r' not in value else ''
+
+
+def local_config():
+    """Defaults for the page, read fresh on every request so editing .env only needs a browser refresh."""
+    env = load_env(ENV_FILE)
+    legacy = lambda path: path.read_text(encoding='utf-8').strip() if path.is_file() else ''
+    maas, qwen = _valid_key(env.get('MAAS_API_KEY', '')), _valid_key(env.get('QWEN_API_KEY', ''))
+    source = '.env' if maas or qwen else ''
+    if not maas: maas = _valid_key(legacy(KEY_FILE))
+    if not qwen: qwen = _valid_key(legacy(QWEN_KEY_FILE))
+    if not source and (maas or qwen): source = '.local-key'
+    model = lambda name: env.get(name, '') if re.fullmatch(r'[\w.\-]{1,100}', env.get(name, '')) else ''
+    base_url = env.get('QWEN_BASE_URL', '')
+    parsed = urllib.parse.urlparse(base_url)
+    return {'runtime': 'local', 'source': source, 'default_key': maas, 'default_qwen_key': qwen,
+            'gen_provider': env.get('GEN_PROVIDER', '') if env.get('GEN_PROVIDER') in ('qwen', 'maas') else '',
+            'qwen_image_model': model('QWEN_IMAGE_MODEL'), 'qwen_text_model': model('QWEN_TEXT_MODEL'),
+            'qwen_base_url': base_url if parsed.scheme == 'https' and parsed.netloc and len(base_url) <= 500 else ''}
+
+
+def env_port(default=8765):
+    value = load_env(ENV_FILE).get('PORT', '')
+    return int(value) if value.isdigit() and 1 <= int(value) <= 65535 else default
+
+
 def http_error_message(exc, key):
     """Readable Chinese message for an upstream HTTP error, with the API key removed."""
     detail = exc.read().decode(errors='replace').replace(key, '[REDACTED]')
@@ -301,8 +347,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/health': return self.respond(200, {'ok': True})
         if path == '/api/assets': return self.respond(200, {'assets': list_assets()})
         if path == '/api/config':
-            read = lambda path: path.read_text(encoding='utf-8').strip() if path.is_file() else ''
-            return self.respond(200, {'runtime': 'local', 'default_key': read(KEY_FILE), 'default_qwen_key': read(QWEN_KEY_FILE)})
+            return self.respond(200, local_config())
         if path.startswith('/api/jobs/'):
             job_id = path.removeprefix('/api/jobs/')
             with LOCK: job = dict(JOBS[job_id]) if job_id in JOBS else None
@@ -340,13 +385,13 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Cover Studio 本地体验工作台')
-    parser.add_argument('--port', type=int, default=8765)
+    parser = argparse.ArgumentParser(description='海报工作台 V2 本地服务')
+    parser.add_argument('--port', type=int, default=env_port(), help='默认读取 .env 的 PORT，未设置时为 8765')
     parser.add_argument('--open', action='store_true', help='启动后打开浏览器')
     args = parser.parse_args()
     OUTPUT.mkdir(exist_ok=True)
     server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
-    print(f'Cover Studio 已启动：http://127.0.0.1:{args.port}', flush=True)
+    print(f'海报工作台 V2 已启动：http://127.0.0.1:{args.port}', flush=True)
     if args.open:
         threading.Timer(0.5, lambda: webbrowser.open(f'http://127.0.0.1:{args.port}')).start()
     try: server.serve_forever()

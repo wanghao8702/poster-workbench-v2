@@ -379,9 +379,9 @@ $('next-step').onclick = () => {showControls(true);setMode('split');$('split-pro
 async function loadExample() {
  if (busy) return;
  try {
-  await loadSource('/example.png','示例海报');
-  await loadLayers(Array.from({length:7},(_,i)=>({url:`/layer-${pad2(i+1)}.png`,name:`layer-${pad2(i+1)}.png`})), '/example-layers.zip', true);
-  setMode('split');notify('已载入上次真实调用的 7 个图层。点击画面里的元素，直接拖动。');
+  await loadSource('/example.png','示例培训海报');
+  await loadLayers(Array.from({length:8},(_,i)=>({url:`/layer-${pad2(i+1)}.png`,name:`layer-${pad2(i+1)}.png`})), '/example-layers.zip', true);
+  setMode('split');notify('已载入示例培训海报的 8 个图层。点击画面里的元素，直接拖动。');
  } catch(e) {notify('示例载入失败：'+e.message,true);}
 }
 $('use-example').onclick = loadExample;$('example-cta').onclick = loadExample;
@@ -586,7 +586,7 @@ $('refresh-library').onclick=refreshLibrary;
 $('library-filter').onchange=renderLibrary;
 
 /* ---------- Layers ---------- */
-const sampleNames=['购买按钮与底部说明','价格与促销说明','卖点图标与文字','主标题与副标题','顶部品牌','产品、装饰与石台','背景底图（有主体残留）'];
+const sampleNames=['时间地点与报名文字','报名按钮底板','讲师姓名与头衔','主标题、副标题与课程内容','底部信息栏','前景听众','讲师人像','背景底图（有标题残影）'];
 function drawThumb(canvas,layer){
  const size=120,inset=8;canvas.width=canvas.height=size;
  const b=layer.bounds;if(!b)return;
@@ -666,7 +666,7 @@ async function loadLayers(items,zip,isSample){
  $('image-meta').textContent=`${isSample?'真实调用示例 · ':''}组合预览 · ${first.naturalWidth} × ${first.naturalHeight}`;
  $('canvas-step').textContent='LAYERS';
  $('canvas-caption').textContent='拖动移动 · 拖角缩放 · ⌘Z 撤销';
- $('layer-note').textContent=isSample?'示例中产品与装饰仍合并在一层，背景层有主体残留。文字图层是像素图片。':'文字图层是像素图片。主体分离与背景补全效果因画面而异。';
+ $('layer-note').textContent=isSample?'示例背景层有标题文字残影，可隐藏或换背景。文字图层是像素图片。':'文字图层是像素图片。主体分离与背景补全效果因画面而异。';
  setFlow(3);
  paintComposition($('composition'),true);
  refreshSelection();fitStage();

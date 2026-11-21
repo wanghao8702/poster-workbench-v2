@@ -34,6 +34,22 @@ for(const [ratio,size] of Object.entries({'1:1':[1600,1600],'9:16':[1080,1920],'
  assert.ok(Math.abs(drawn[4]/drawn[5]-400/500)<1e-10,'不能拉伸原图');
  assert.equal(calls.some(c=>c[0]==='selection'),false);
 }
+// Model output is only roughly the requested ratio (3:4 → 896×1156). A near match must fill the canvas: no off-white edges.
+{
+ const near=[{bitmap:{naturalWidth:896,naturalHeight:1156},x:0,y:0,visible:true}];
+ const nearCalls=[];const nearCtx={clearRect(){},fillRect(){},drawImage(...args){nearCalls.push(args);},setLineDash(){},strokeRect(){}};
+ const nearCanvas={width:0,height:0,getContext:()=>nearCtx,getBoundingClientRect:()=>({width:200})};
+ const c2={layers:near,selectedIndex:-1,reverseStack:false,manualOrder:[],outputRatio:'3:4'};vm.createContext(c2);vm.runInContext(ordering+layoutSource+transforms+paint,c2);
+ c2.paintComposition(nearCanvas);
+ assert.deepEqual([nearCanvas.width,nearCanvas.height],[1200,1600]);
+ const [,dx,dy,dw,dh]=nearCalls[0];
+ const e=1e-6;assert.ok(dx<=e&&dy<=e&&dx+dw>=1200-e&&dy+dh>=1600-e,'比例接近时铺满画布，不留白边');
+ assert.ok(Math.abs(dw/dh-896/1156)<1e-10,'不能拉伸原图');
+ c2.outputRatio='16:9';nearCalls.length=0;c2.paintComposition(nearCanvas);
+ const [,ox,oy,ow,oh]=nearCalls[0];
+ assert.ok(ox>=0&&oy>=0&&ox+ow<=1920+1e-9&&oy+oh<=1080+1e-9,'比例相差很大时仍完整保留画面');
+ console.log('比例接近时导出铺满无白边、相差大时完整保留检查通过');
+}
 // Coordinates used to select and drag must map back into source pixels.
 context.composition={width:1500,height:600,getBoundingClientRect:()=>({left:10,top:20,width:750,height:300})};
 context.outputRatio='5:2';

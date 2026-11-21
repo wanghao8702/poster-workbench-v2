@@ -29,6 +29,7 @@ function sandbox(extra){
  await ctx.openAsset({kind:'generate',prompt:'【画布比例】3:4（宽:高）。\n历史提示词 肖像参考图“a.jpg”',ratio:'3:4',images:[{url:'/output/x/image-01.png'}]});
  assert.deepEqual(ctx.notices.filter(n=>n[1]),[],'载入历史素材不应报错');
  assert.equal(ctx.els['generate-prompt'].value,'历史提示词 肖像参考图“a.jpg”');
+ assert.equal(ctx.outputRatio,'auto','载入生成图后按原图尺寸导出，不强制套标准比例');
  assert.ok(ctx.staleCategories.has('training'),'历史提示词与表单不一致时应提示');
  assert.match(ctx.staleCategories.get('training'),/历史素材/);
  assert.ok(ctx.genUI>0);

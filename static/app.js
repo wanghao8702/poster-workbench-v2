@@ -279,7 +279,10 @@ function canvasLayout(){
  const first=layers[0].bitmap;
  const sourceWidth=first.naturalWidth,sourceHeight=first.naturalHeight;
  const [width,height]=OUTPUT_SIZES[outputRatio]||[sourceWidth,sourceHeight];
- const scale=Math.min(width/sourceWidth,height/sourceHeight);
+ // Models return only roughly the requested ratio (3:4 → 1140×1472). Within 6% we fill the canvas and trim
+ // a sliver instead of leaving off-white edges; a clearly different ratio still keeps the whole picture.
+ const near=Math.abs((width/height)/(sourceWidth/sourceHeight)-1)<=0.06;
+ const scale=(near?Math.max:Math.min)(width/sourceWidth,height/sourceHeight);
  return {width,height,scale,offsetX:(width-sourceWidth*scale)/2,offsetY:(height-sourceHeight*scale)/2};
 }
 $('output-ratio').onchange=()=>{
@@ -512,7 +515,6 @@ async function submit(kind) {
    if(job.status!=='done')continue;
    if(kind==='generate'){
     await loadSource(job.images[0].url,'生成结果');sample=false;
-    outputRatio=ratio;$('output-ratio').value=ratio;
     const warnings=Array.isArray(job.warnings)?job.warnings:[];
     if(warnings.length)notify(`生成完成 · ${job.elapsed} 秒。注意：${warnings.join(' ')}`,true);
     else notify(`生成完成 · ${job.elapsed} 秒。可以下载原图或继续拆解。`);
@@ -611,7 +613,7 @@ async function openAsset(item){
    updateGenUI();
    const promptRatio=item.prompt.match(/^【画布比例】(1:1|9:16|16:9|5:2|4:3|3:4)/)?.[1];
    const ratio=OUTPUT_SIZES[item.ratio]?item.ratio:(promptRatio||'auto');
-   $('generate-ratio').value=ratio;outputRatio=ratio;$('output-ratio').value=ratio;setMode('split');
+   $('generate-ratio').value=ratio;setMode('split');
   }else{
    // Older jobs have no saved source: use their unedited composition for future splitting.
    currentImage=null;outputRatio='auto';$('output-ratio').value='auto';

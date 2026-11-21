@@ -41,7 +41,7 @@
 
 ### 使用流程
 
-1. **生成**：选择品类。培训海报点「填写培训信息」，填完点「保存并更新提示词」；封面图点「风格与标题设置」选择风格。左栏的完整提示词仍然可以手动修改。选好画面比例后点「生成图片」。
+1. **生成**：选择品类。培训海报点「填写培训信息」，填完点「保存并更新提示词」；封面图点「风格与标题设置」，在示例图里点选风格。左栏的完整提示词仍然可以手动修改。选好画面比例后点「生成图片」。
 2. **拆解**：点「继续拆解图层」，也可以上传已有图片；确认图层规划后开始拆解。
 3. **编辑**：在画布中选择图层，拖动位置、缩放大小，在右侧调整显隐和叠放顺序。
 4. **导出**：下载原图、编辑后的合成 PNG、单层 PNG，或原始图层 ZIP。
@@ -141,7 +141,7 @@ node --check static/app.js   # 其余 static/*.js 同理
 
 | 来源 | 集成内容 | 固定版本 |
 | --- | --- | --- |
-| [Punk-Skill](https://github.com/adrianpunk/Punk-Skill) | 31 种封面与海报风格规则 | `v1.0.0-mit`，提交 `0380629c81b4cc6870722cb99fb6fe0ee416b56f` |
+| [Punk-Skill](https://github.com/adrianpunk/Punk-Skill) | 31 种封面与海报风格规则，以及风格示例图（`static/punk-thumbs/`，由仓库 `screenshots/punk-cover-styles/` 缩小为 640 px 宽的 JPEG） | `v1.0.0-mit`，提交 `0380629c81b4cc6870722cb99fb6fe0ee416b56f` |
 
 Punk 集成仅使用上述 MIT 历史版本。原始来源与授权文件保留在 `vendor/`，许可证另见 [static/punk-license.txt](static/punk-license.txt)。
 

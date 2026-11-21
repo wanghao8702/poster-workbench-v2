@@ -143,8 +143,31 @@ function updateStyleUI(){
  $('style-description').textContent=description;$('style-description').hidden=!description;
  $('prompt-label').textContent=purpose==='free'?'自由创作提示词':lastCompiled[purpose]?'完整提示词（可修改）':'画面描述';
  $('creative-presets').hidden=purpose!=='free';
+ syncStyleGrid();
 }
 $('style-select').onchange=updateStyleUI;
+/* Visual style picker. The hidden #style-select stays the single source of truth. */
+function renderStyleGrid(){
+ const card=(value,name,thumb)=>{
+  const button=document.createElement('button');button.type='button';button.className='style-card';button.dataset.style=value;
+  const frame=document.createElement('span');frame.className='style-thumb';
+  if(thumb){
+   const img=document.createElement('img');img.src=thumb;img.alt='';img.loading='lazy';img.decoding='async';
+   img.addEventListener('error',()=>{img.remove();frame.classList.add('style-thumb-empty');frame.textContent='暂无示例图';});
+   frame.append(img);
+  }else{frame.classList.add('style-thumb-empty');frame.textContent='自由描述';}
+  const label=document.createElement('span');label.className='style-name';label.textContent=name;
+  button.append(frame,label);button.title=name;
+  button.onclick=()=>{$('style-select').value=value;updateStyleUI();};
+  return button;
+ };
+ $('style-grid').replaceChildren(card('','不套风格',''),...punkStyles.map(style=>card(`punk:${style.id}`,style.name,`/punk-thumbs/${style.id}.jpg`)));
+ syncStyleGrid();
+}
+function syncStyleGrid(){
+ const value=$('style-select').value;
+ for(const button of $('style-grid').querySelectorAll('.style-card'))button.setAttribute('aria-pressed',String(button.dataset.style===value));
+}
 function dialogError(category,message){const error=$(DIALOG_IDS[category]).querySelector('.dialog-error');error.textContent=message;error.hidden=!message;}
 function openSettings(){
  const category=purpose,dialog=$(DIALOG_IDS[category]);if(!dialog||busy)return;
@@ -152,6 +175,7 @@ function openSettings(){
  dialogError(category,'');
  if(category==='training')TrainingForm.setRefLimit(genSettings());
  dialog.showModal();
+ if(category==='cover')$('style-grid').querySelector('[aria-pressed="true"]')?.scrollIntoView({block:'nearest'});
 }
 function closeSettings(save){
  const saved=dialogSnapshot;if(!saved)return;
@@ -955,6 +979,7 @@ async function init(){
      for(const style of punkStyles){const option=document.createElement('option');option.value=`punk:${style.id}`;option.textContent=style.name;group.append(option);}
      $('style-select').append(group);
     }
+    renderStyleGrid();
    }catch(e){notify('Punk 风格库读取失败，封面图仍可自由描述。',true);}
   })(),
   (async()=>{

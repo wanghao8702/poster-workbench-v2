@@ -154,11 +154,12 @@
   <button role="menuitem" data-action="reset">复位位置和大小</button>
   <button role="menuitem" data-action="download">下载这一层</button>
 </div>
-<dialog id="cover-dialog" class="settings-dialog" aria-labelledby="cover-dialog-title">
+<dialog id="cover-dialog" class="settings-dialog cover-dialog" aria-labelledby="cover-dialog-title">
   <div class="dialog-head"><h2 id="cover-dialog-title">封面风格与标题</h2><button type="button" class="quiet dialog-x" data-close aria-label="关闭">✕</button></div>
   <div class="dialog-body">
-    <label class="field-label" for="style-select">风格 <span id="style-source"></span></label>
-    <select id="style-select" class="size-select"><option value="">不套风格 · 自由描述</option></select>
+    <span class="field-label" id="style-grid-label">风格 <span id="style-source"></span></span>
+    <div id="style-grid" class="style-grid" role="group" aria-labelledby="style-grid-label"></div>
+    <select id="style-select" class="size-select" hidden aria-hidden="true" tabindex="-1"><option value="">不套风格 · 自由描述</option></select>
     <p id="style-description" class="field-note style-description" hidden></p>
     <div id="cover-fields" class="punk-fields" hidden>
       <label class="field-label" for="cover-title">封面标题</label><input id="cover-title" class="size-select" maxlength="120" placeholder="例如：生成之后，还能接着改">

@@ -87,4 +87,21 @@ const plain=v=>JSON.parse(JSON.stringify(v));
  assert.equal(formCtx.TrainingForm.summary(photoOnly),'安全生产月 · 1 位讲师');
  assert.equal(formCtx.TrainingForm.summary({...photoOnly,lecturerMode:'portrait'}),'安全生产月 · 2 位讲师');
  console.log('仅文字模式下只有照片的讲师不计入检查通过');
+
+ // test_clear_stage_resets_canvas_but_keeps_work
+ const stage=sandbox({layers:[{}],past:[1],future:[],manualOrder:[0],selectedIndex:0,hoverIndex:-1,drag:null,currentImage:'/output/a/image-01.png',sample:true,
+  flow:0,setFlow(n){stage.flow=n;},setMode(m){stage.mode=m;},confirm:()=>stage.answer});
+ for(const id of ['editor-controls','layers-section','composition','preview-image','download-original','next-step','clear-stage'])stage.els[id]={...element(),hidden:false,removeAttribute(){this.src='';}};
+ stage.els['empty-state']={...element(),hidden:true};
+ stage.els['generate-prompt']=element('我的提示词');
+ vm.runInContext(slice('function clearStage(','$(\'next-step\').onclick'),stage);
+ stage.answer=false;stage.clearStage();
+ assert.equal(stage.layers.length,1,'有未导出的图层调整时，取消确认不应清空');
+ stage.answer=true;stage.clearStage();
+ assert.equal(stage.layers.length,0);assert.equal(stage.currentImage,null);assert.equal(stage.past.length,0);
+ assert.equal(stage.els['empty-state'].hidden,false);
+ for(const id of ['layers-section','composition','preview-image','download-original','next-step','clear-stage'])assert.equal(stage.els[id].hidden,true,id);
+ assert.equal(stage.flow,1);assert.equal(stage.mode,'generate');
+ assert.equal(stage.els['generate-prompt'].value,'我的提示词','清空画布不动提示词');
+ console.log('清空画布：确认、重置画布、保留提示词检查通过');
 })().catch(error=>{console.error(error);process.exitCode=1;});

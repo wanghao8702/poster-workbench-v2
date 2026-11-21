@@ -370,11 +370,28 @@ async function loadSource(url, label) {
  $('download-original').href = url;
  $('download-original').hidden = false;
  $('next-step').hidden = false;
+ $('clear-stage').hidden = false;
  setFlow(2);
  await $('preview-image').decode().catch(() => {});
  fitStage();
  return img;
 }
+/* Start over on the canvas. Prompts, dialogs and the asset library are left alone. */
+function clearStage(){
+ if(busy)return;
+ if(past.length&&!confirm('清空画布会丢弃当前未导出的图层调整（素材库里的原图和图层不受影响），确定吗？'))return;
+ currentImage=null;layers=[];past=[];future=[];manualOrder=[];
+ selectedIndex=-1;hoverIndex=-1;drag=null;sample=false;
+ outputRatio='auto';$('output-ratio').value='auto';
+ for(const id of ['editor-controls','layers-section','composition','preview-image','download-original','next-step','clear-stage'])$(id).hidden=true;
+ $('preview-image').removeAttribute('src');
+ $('empty-state').hidden=false;
+ $('image-meta').textContent='等待你的第一张作品';$('canvas-step').textContent='PREVIEW';
+ $('selected-layer').textContent='生成或上传一张图开始';$('layer-position').textContent='';$('canvas-caption').textContent='';
+ setFlow(1);setMode('generate');
+ notify('画布已清空。提示词和填写的信息都保留，之前的结果仍在「我的素材库」。');
+}
+$('clear-stage').onclick=clearStage;
 $('next-step').onclick = () => {showControls(true);setMode('split');$('split-prompt').focus();};
 async function loadExample() {
  if (busy) return;
@@ -655,6 +672,7 @@ function analyzeBitmap(bitmap){
 }
 async function loadLayers(items,zip,isSample){
  sample=isSample;
+ $('clear-stage').hidden=false;
  const decoded=await Promise.all(items.map(async(item,i)=>{
   const bitmap=await readImage(item.url);
   const {pixels,coverage,bounds}=analyzeBitmap(bitmap);
@@ -700,7 +718,7 @@ function paintComposition(canvas,selection=false){
  const chosen=layers[selectedIndex];
  if(selection&&chosen?.visible&&chosen.bounds){
   const scale=canvas.width/(canvas.getBoundingClientRect().width||canvas.width);const b=layerBox(chosen);
-  ctx.lineWidth=2*scale;ctx.strokeStyle='#456b48';ctx.setLineDash([6*scale,4*scale]);
+  ctx.lineWidth=2*scale;ctx.strokeStyle='#2443e5';ctx.setLineDash([6*scale,4*scale]);
   ctx.strokeRect(offsetX+b.x*zoom,offsetY+b.y*zoom,b.width*zoom,b.height*zoom);
   if(!chosen.locked){
    ctx.setLineDash([]);ctx.fillStyle='#f8f7f1';const size=8*scale;
@@ -716,7 +734,7 @@ function renderComposition(){
   const hovered=layers[hoverIndex];
   if(hovered&&hoverIndex!==selectedIndex&&hovered.visible&&hovered.bounds&&!drag){
    const ctx=canvas.getContext('2d'),scale=canvas.width/(canvas.getBoundingClientRect().width||canvas.width),b=layerBox(hovered);
-   ctx.setLineDash([]);ctx.lineWidth=1.5*scale;ctx.strokeStyle='#456b4899';
+   ctx.setLineDash([]);ctx.lineWidth=1.5*scale;ctx.strokeStyle='#2443e599';
    const layout=canvasLayout();
    ctx.strokeRect(layout.offsetX+b.x*layout.scale,layout.offsetY+b.y*layout.scale,b.width*layout.scale,b.height*layout.scale);
   }

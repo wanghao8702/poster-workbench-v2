@@ -1,9 +1,10 @@
 import base64
+import io
 import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import server
 
@@ -116,6 +117,26 @@ class EditTest(unittest.TestCase):
         self.assertEqual((self.output / 'rec2' / new).read_bytes(), PNG)
         with self.assertRaises(ValueError): server.carry_edit({'from': 'rec1', 'to': 'rec2', 'sources': ['layer-01.png']})
         with self.assertRaises(ValueError): server.carry_edit({'from': 'rec1', 'to': 'rec2', 'sources': ['edit/../../x.png']})
+
+    def post(self, path, payload):
+        body = json.dumps(payload).encode()
+        handler = object.__new__(server.Handler)
+        handler.path = path
+        handler.headers = {'Content-Length': str(len(body))}
+        handler.rfile = io.BytesIO(body)
+        handler.local_request = lambda: True
+        handler.respond = Mock()
+        handler.do_POST()
+        return handler.respond.call_args.args
+
+    def test_routes_reach_edit_endpoints(self):
+        status, body = self.post('/api/assets/import', {'name': 'a.png', 'data': PNG_URL})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(body['kind'], 'upload')
+        status, body = self.post('/api/edits/save', {'asset_id': 'rec1', 'doc': self.doc()})
+        self.assertEqual((status, body['ok']), (200, True))
+        status, body = self.post('/api/assets/delete', {'id': 'rec1'})
+        self.assertEqual((status, body), (200, {'ok': True}))
 
     def test_legacy_records_still_list(self):
         assets = server.list_assets()

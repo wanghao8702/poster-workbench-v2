@@ -4,7 +4,7 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="海报工作台 V2：AI 生成封面、培训海报等作品，拆解图层，拖动调整后导出。">
   <title>海报工作台 V2</title>
-  <link rel="stylesheet" href="/style.css"><script src="/punk-cover.js" defer></script><script src="/training-prompt.js" defer></script><script src="/config.js" defer></script><script src="/training-form.js" defer></script><script src="/app.js" defer></script>
+  <link rel="stylesheet" href="/style.css"><script src="/punk-cover.js" defer></script><script src="/training-prompt.js" defer></script><script src="/config.js" defer></script><script src="/training-form.js" defer></script><script src="/vendor/fabric.min.js" defer></script><script src="/editor-core.js" defer></script><script src="/editor.js" defer></script><script src="/editor-panel.js" defer></script><script src="/app.js" defer></script>
 </head>
 <body>
 <header class="topbar">
@@ -44,7 +44,7 @@
 </header>
 <section id="asset-library" class="asset-library" aria-label="我的素材库" hidden>
   <div class="library-head"><div><h2>我的素材库</h2><p>生成图片与拆层结果，自动保存在本机。</p></div><button id="close-library" class="quiet">关闭</button></div>
-  <div class="library-tools"><label for="library-filter">素材类型</label><select id="library-filter" class="size-select"><option value="all">全部素材</option><option value="generate">生成图片</option><option value="split">拆层结果</option></select><button id="refresh-library" class="quiet">刷新</button></div>
+  <div class="library-tools"><label for="library-filter">素材类型</label><select id="library-filter" class="size-select"><option value="all">全部素材</option><option value="generate">生成图片</option><option value="split">拆层结果</option><option value="upload">上传图片</option></select><button id="refresh-library" class="quiet">刷新</button></div>
   <p id="library-status" role="status"></p>
   <button id="undo-delete" class="secondary" hidden>撤销删除</button>
   <div id="asset-list" class="asset-list"></div>
@@ -104,9 +104,19 @@
           <button id="reset-layer" class="quiet">复位选中</button>
           <button id="reset-all" class="quiet">全部复位</button>
         </span>
+        <span id="save-state" class="save-state" role="status" hidden></span>
         <a id="download-original" class="quiet" hidden download="poster-v2-original.png">下载原图 ↓</a>
         <button id="clear-stage" class="quiet" hidden title="清空画布，开始下一张（素材库不受影响）">清空画布</button>
       </div>
+    </div>
+    <div id="editor-toolbar" class="editor-toolbar" hidden>
+      <label class="tool-button tool-upload" title="上传 PNG / JPEG / WebP，适合 logo、二维码">＋图片<input id="add-image-input" type="file" accept="image/png,image/jpeg,image/webp"></label>
+      <button id="add-text" type="button" class="tool-button" title="新建文字，双击可直接修改">＋文字</button>
+      <select id="add-shape" class="tool-button tool-select" aria-label="添加形状"><option value="">＋形状</option><option value="rect">矩形</option><option value="roundrect">圆角矩形</option><option value="line">线条</option></select>
+      <i class="divider" aria-hidden="true"></i>
+      <span class="tool-hint">拖动对齐 · 按住 Alt 关闭吸附 · Shift 旋转 15° · 双击文字编辑</span>
+      <button id="restore-original" type="button" class="quiet" hidden title="丢弃编辑，回到模型的原始图层">恢复原始图层</button>
+      <span id="sample-note" class="sample-note" hidden>示例不会保存，导出 PNG 保留结果</span>
     </div>
     <div class="canvas-stage" id="canvas-stage">
       <div id="empty-state" class="empty-state">
@@ -116,8 +126,8 @@
         <button id="example-cta" class="secondary">体验示例海报 ↗</button>
       </div>
       <img id="preview-image" alt="当前作品预览" hidden>
-      <canvas id="composition" hidden></canvas>
-      <button id="next-step" class="primary next-step" hidden>继续拆解图层 →</button>
+      <div id="editor-host" class="editor-host" hidden><canvas id="editor-canvas"></canvas></div>
+      <div id="next-actions" class="next-actions" hidden><button id="direct-edit" class="secondary" title="不拆层，直接在这张图上加 logo、二维码和文字">直接编辑 ✎</button><button id="next-step" class="primary">继续拆解图层 →</button></div>
       <div id="busy-overlay" class="busy-overlay" hidden><div class="spinner"></div><h3 id="busy-title">正在生成你的画面</h3><p id="busy-detail">通常需要 30–90 秒，请保持页面打开。</p><span id="elapsed">0 秒</span></div>
       <div id="status" role="status" aria-live="polite" hidden></div>
     </div>
@@ -128,9 +138,9 @@
     <div class="lp-head">
       <div><span class="step">LAYERS</span><h2 id="layer-count">图层</h2><p id="layer-summary"></p></div>
       <div class="lp-tools"><button id="select-all" class="quiet">全部显示</button><button id="reverse-stack" class="quiet">反转顺序 ⇅</button></div>
-      <label class="scale-control" for="layer-scale">图层缩放 <span><input id="layer-scale" type="number" min="10" max="400" step="1" value="100" disabled> %</span></label>
       <p class="layer-note">按住左侧手柄上下拖动可调整顺序，上方图层覆盖下方。右键图层有更多操作。</p>
     </div>
+    <div id="props" class="props-panel" aria-label="选中图层的属性" hidden></div>
     <div id="layer-list" class="layer-list"></div>
     <div class="lp-foot">
       <p class="layer-note" id="layer-note">文字图层是像素图片。主体分离与背景补全效果因画面而异。</p>
@@ -156,6 +166,8 @@
   <button role="menuitem" data-action="hide">隐藏</button>
   <button role="menuitem" data-action="lock">锁定</button>
   <button role="menuitem" data-action="reset">复位位置和大小</button>
+  <button role="menuitem" data-action="copy">复制一层</button>
+  <button role="menuitem" data-action="delete">删除</button>
   <button role="menuitem" data-action="download">下载这一层</button>
 </div>
 <dialog id="cover-dialog" class="settings-dialog cover-dialog" aria-labelledby="cover-dialog-title">

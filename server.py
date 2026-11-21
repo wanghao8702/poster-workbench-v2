@@ -536,11 +536,12 @@ class Handler(BaseHTTPRequestHandler):
             if length <= 0 or length > MAX_BODY: return self.respond(413, {'error': '上传内容过大，图片请控制在 20 MB 以内。'})
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict): raise ValueError('请求格式错误。')
-            if self.path.startswith('/api/assets/'):
+            # Edit routes first: /api/assets/import shares the /api/assets/ prefix with delete and restore.
+            if self.path in EDIT_ROUTES: return self.respond(200, EDIT_ROUTES[self.path](payload))
+            if self.path in ('/api/assets/delete', '/api/assets/restore'):
                 move_asset(payload.get('id'), restore=self.path.endswith('/restore'))
                 return self.respond(200, {'ok': True})
             if self.path == '/api/extract': return self.respond(200, extract_request(payload))
-            if self.path in EDIT_ROUTES: return self.respond(200, EDIT_ROUTES[self.path](payload))
             job = validate_job_payload(payload)
             kind = job['kind']
             with LOCK:

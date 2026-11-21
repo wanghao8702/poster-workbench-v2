@@ -1,40 +1,24 @@
 <div align="center">
 
-# Cover Studio
+# 海报工作台 V2
 
-**从一个想法，到每一个图层。**
+**填好培训信息，生成一张可以拆层编辑的培训海报。**
 
-一个集 AI 生图、图片拆层和图层编辑于一体的轻量网页工作台。
-
-**在线访问：[https://cover.aigce.com/](https://cover.aigce.com/)**
-
-[在线体验](https://cover.aigce.com) · [快速开始](#快速开始) · [Cloudflare 部署](#cloudflare-部署) · [数据与隐私](#数据与隐私)
+给企业人力资源部、培训部门用的本地海报工具：AI 生图 → 拆成透明图层 → 拖动调整 → 导出。
 
 </div>
 
 ---
 
-输入提示词生成封面或海报，将图片拆成透明图层，再拖动、缩放、调整叠放顺序，导出最终作品。支持 Python 本地运行与 Cloudflare Workers 部署，无需前端构建。
+基于 [Cover Studio](../cover-studio) 二次开发。主要改动：
 
-> 不填写 API Key 也可以点击「载入示例」，体验已有海报的 7 个图层。生成新图或重新拆层需要具备对应模型权限的蚂蚁数科 MaaS API Key。
+- 品类改为 **封面图 / 培训海报 / 自由创作**（去掉了小红书和电商海报）。
+- **培训海报**：在弹窗里填写主题、受众、时间地点、文案、课程内容和讲师，保存后自动拼出完整提示词。视觉风格、配色与版式交给 AI 判断。
+- 支持**讲师肖像参考图**（需使用千问生图），让海报上的讲师与本人一致。
+- 设置区由折叠展开改为**弹窗**，保存后更新完整提示词；手动改过的提示词不会被悄悄覆盖。
+- 只做本地版本，已移除 Cloudflare 部署。
 
-## 功能特性
-
-- **四个创作板块**：封面图、小红书、电商海报、自由创作，各自保留独立提示词与设置。
-- **风格与模板**：集成 Punk 封面风格规则与 PONYO 小红书封面模板，支持查看、修改编译后的提示词。
-- **生成与拆层**：从文字生成图片，或上传 PNG、JPEG、WebP 图片进行拆层，上传上限为 20 MB。
-- **图层编辑**：拖动、等比缩放、显示与隐藏、锁定、重命名、拖拽排序，以及撤销和重做。
-- **多比例导出**：支持原图、合成 PNG、单层 PNG 和原始图层 ZIP 下载。
-- **素材库**：保存生成与拆层结果，支持筛选、重新载入、删除及当前页面撤销删除。
-- **两种运行方式**：本地 Python 服务，或 Cloudflare Workers + Static Assets。
-
-## 作品示例
-
-<p align="center">
-  <img src="static/example.png" alt="白茶香氛沐浴露电商海报示例" width="360">
-</p>
-
-仓库内附有这张海报及对应的 7 个拆分图层。载入后即可体验组合预览、拖动和导出，无需调用模型。
+> 不填 API Key 也可以点「载入示例」，体验示例海报的 7 个图层。生成新图需要千问或 MaaS 的 Key，拆层需要 MaaS 的 Key。
 
 ## 快速开始
 
@@ -42,174 +26,124 @@
 
 | 环境 | 用途 |
 | --- | --- |
-| Python 3.10+ | 本地服务，仅使用标准库，无需安装 Python 依赖 |
-| Node.js 20+ 与 npm | 运行 JavaScript 检查及 Wrangler 部署 |
-| MaaS API Key | 调用生图与拆层模型；查看内置示例无需 Key |
+| Python 3.10+ | 本地服务，仅使用标准库，无需安装依赖 |
+| 千问（阿里云百炼）API Key | 生图，支持讲师肖像参考图 |
+| 蚂蚁数科 MaaS API Key | 拆层；也可用于生图（不支持肖像参考） |
+| Node.js 20+（可选） | 仅用于运行前端检查脚本 |
 
-### 本地运行
+### 启动
 
-下载仓库并解压，进入项目目录后执行：
+- **Windows**：双击 `启动.bat`。它会依次尝试 `py -3`、`python`、`python3`，启动后自动打开浏览器；没找到 Python 时会提示去安装。关闭命令行窗口即停止服务。
+- **命令行**：`python server.py --open`（指定端口：`python server.py --port 8766`）
+- **macOS**：双击 `启动.command`
 
-```bash
-cd cover-studio
-python3 server.py
-```
-
-打开 [http://127.0.0.1:8765](http://127.0.0.1:8765)，在右上角「API 设置」填写自己的 Key。
-
-自动打开浏览器，或指定其他端口：
-
-```bash
-python3 server.py --open
-python3 server.py --port 8766
-```
-
-macOS 也可以双击仓库内的 `启动.command`。本地服务仅监听 `127.0.0.1`，公网部署请使用下面的 Workers 方案。
+打开 [http://127.0.0.1:8765](http://127.0.0.1:8765)，在右上角「API 设置」填写 Key。服务只监听本机 `127.0.0.1`。
 
 ### 使用流程
 
-1. **生成**：选择创作品类，填写提示词或载入预设，选择比例后生成图片。
-2. **拆解**：点击「继续拆解图层」，也可以上传已有图片；确认图层规划后开始拆解。
+1. **生成**：选择品类。培训海报点「填写培训信息」，填完点「保存并更新提示词」；封面图点「风格与标题设置」选择风格。左栏的完整提示词仍然可以手动修改。选好画面比例后点「生成图片」。
+2. **拆解**：点「继续拆解图层」，也可以上传已有图片；确认图层规划后开始拆解。
 3. **编辑**：在画布中选择图层，拖动位置、缩放大小，在右侧调整显隐和叠放顺序。
 4. **导出**：下载原图、编辑后的合成 PNG、单层 PNG，或原始图层 ZIP。
 
-## 图层操作
+## 培训海报
 
-| 操作 | 使用方式 |
+弹窗字段：培训主题（必填）、目标受众（可多选）、日期、时间、形式（线下 / 线上 / 混合）、地点、主标题（留空则用主题）、副标题、行动号召、课程内容（每行一条），以及讲师（最多 6 位：肖像、姓名、头衔、资历、姿势、着装）和讲师呈现方式（主讲人出镜 / 肖像 + 简介 / 仅文字）。
+
+- 文字字段保存在当前浏览器，刷新后保留；**讲师肖像不保存**，刷新后需重新上传。
+- 肖像上传后会在浏览器内压缩为长边不超过 1600 px 的 JPEG。
+- `qwen-image-2.1` 系列模型一次最多参考 10 张肖像，其他千问模型最多 3 张。超出的讲师按虚构形象绘制，弹窗里会提前提示。
+- 生图接口选 MaaS 时不支持肖像参考，讲师按虚构形象绘制，生成按钮上方会提示。
+- 切换生图接口、模型或画面比例后：提示词没手动改过的会自动重新拼装；改过的不会被覆盖，提示词上方会出现「重新拼装」按钮。
+
+## API 设置
+
+| 分组 | 字段 | 默认值 |
+| --- | --- | --- |
+| 生图接口 | 千问 / MaaS | 千问 |
+| 千问 | API Key、模型、Base URL | `qwen-image-3.0-pro`、`https://dashscope.aliyuncs.com/api/v1` |
+| 拆层接口 | MaaS API Key | — |
+
+- Base URL 带 `/api/v1` 时走百炼原生图像接口；百炼官方域名的 `/compatible-mode/v1` 地址也会自动改走原生接口（兼容模式没有图像接口）。只接受 `https://` 地址。
+- 生图接口、模型和 Base URL 会记在浏览器里；**Key 只保存在当前页面**，刷新后需重新填写。
+- 本机测试可以把 Key 分别写进项目根目录的 `.local-key`（MaaS）和 `.local-qwen-key`（千问），启动后会自动填入。这两个文件已加入 `.gitignore`，不要提交。
+
+比例与千问出图尺寸：
+
+| 比例 | 尺寸 |
 | --- | --- |
-| 选择图层 | 点击画布中的元素，或右侧图层行 |
-| 移动 | 拖动画布中的图层；按住 Alt 可关闭原位吸附 |
-| 微调 | 方向键移动 1 px，Shift + 方向键移动 10 px |
-| 缩放 | 拖动选框角点，或输入 10%–400% 的缩放比例 |
-| 调整叠放 | 拖动图层行左侧手柄；右键菜单支持置顶、上移、下移和置底 |
-| 显隐与锁定 | 点击图层行的眼睛或锁图标；Delete 可隐藏选中图层 |
-| 撤销 / 重做 | macOS：⌘Z / ⇧⌘Z；Windows：Ctrl+Z / Ctrl+Shift+Z |
-| 复位 | 使用「复位选中」或「全部复位」恢复位置与大小 |
-
-图层列表上方覆盖下方。完整背景默认锁定，解锁后可以移动。导出合成图使用当前编辑状态，原始图层 ZIP 保留模型输出。
-
-支持 `1:1`、`9:16`、`16:9`、`5:2`、`4:3`、`3:4` 等比例。切换导出比例会等比适配完整画面，比例不一致时留白，不拉伸图片。
-
-## Cloudflare 部署
-
-使用 **Workers + Static Assets** 同时提供网页与 API 转发。仅上传静态文件不能提供生图和拆层接口。
-
-### 1. 登录并预览
-
-在项目根目录执行：
-
-```bash
-npx wrangler login
-npx wrangler dev
-```
-
-### 2. 发布
-
-```bash
-npx wrangler deploy
-```
-
-发布完成后，通过终端返回的地址访问。每位使用者在网页内填写自己的 MaaS Key，无需在 Worker 中配置统一的站长 Key。
-
-### 3. 可选：指定账户与自定义域名
-
-仓库中的 `wrangler.jsonc` 不包含个人账户或域名绑定。登录了多个账户时，添加自己的 `account_id`；需要绑定域名时，在原配置中添加：
-
-```jsonc
-{
-  // 以下字段合并到已有配置中，保留 main、assets 等字段。
-  "account_id": "YOUR_CLOUDFLARE_ACCOUNT_ID",
-  "routes": [
-    { "pattern": "cover.example.com", "custom_domain": true }
-  ]
-}
-```
-
-域名需要由所选 Cloudflare 账户管理。修改后重新运行 `npx wrangler deploy`。
+| 1:1 | 1328 × 1328 |
+| 3:4 | 1140 × 1472 |
+| 4:3 | 1472 × 1140 |
+| 9:16 | 928 × 1664 |
+| 16:9 | 1664 × 928 |
+| 5:2 | 按 1664 × 928 出图，提示词中仍写 5:2 |
+| 自动 | 培训海报 3:4、封面图 16:9、自由创作 1:1 |
 
 ## 数据与隐私
 
-| 项目 | Python 本地模式 | Cloudflare 模式 |
-| --- | --- | --- |
-| API Key | 当前页面内存；可从本机 `.local-key` 载入 | 当前页面内存，刷新后需要重新填写 |
-| 模型请求 | 由本地 Python 服务转发给 MaaS | 由 Worker 转发给 MaaS |
-| 作品与任务记录 | 项目目录下的 `output/` | 当前浏览器的 IndexedDB |
-| 跨设备同步 | 不支持 | 不支持 |
-
-- API Key 不写入素材记录。Worker 不保存或回显 Key，仓库默认关闭 Worker 可观测日志。
-- `.local-key`、`output/`、`.env` 和 `.dev.vars` 等本地文件已加入 `.gitignore`，不要将真实凭据提交到仓库。
-- 线上作品没有设置自动到期时间。清理网站数据、使用其他浏览器或更换设备后，无法读取原浏览器中的作品；重要作品请及时下载。
-- 素材库保存模型原始输出，拖动、缩放和显隐等编辑状态暂不自动保存到历史。请导出合成 PNG 保存编辑结果。
-- 本地作品不会随部署上传到线上，浏览器素材库也不会自动同步到服务器。
+- 生成和拆层结果保存在项目下的 `output/`，每个任务一个文件夹，包含图片、`manifest.json`、`prompt.txt` 和 `images.zip`。千问任务另存所用的讲师肖像 `ref-01.jpg …`，仅用于留档，不进 ZIP。
+- **讲师肖像会发送给你配置的千问服务**，请确认已获得讲师本人同意。
+- API Key 不会写入素材记录、日志或报错信息。
+- 素材库保存模型原始输出，拖动、缩放和显隐等编辑状态不自动保存，请导出合成 PNG。
 
 ## 模型接入
 
-当前接入蚂蚁数科 MaaS 的两个图片模型：
+| 能力 | 服务 | 模型 | 接口 |
+| --- | --- | --- | --- |
+| 生图（默认） | 阿里云百炼 | `qwen-image-3.0-pro`（可改） | `POST /api/v1/services/aigc/multimodal-generation/generation` |
+| 生图（可选） | 蚂蚁数科 MaaS | `ming-image-0.1-design` | `POST /v1/images/generations` |
+| 拆层 | 蚂蚁数科 MaaS | `ming-image-0.1-design-layer` | `POST /v1/images/edits` |
 
-| 能力 | 模型 | 上游接口 |
-| --- | --- | --- |
-| 文字生图 | `ming-image-0.1-design` | `POST /v1/images/generations` |
-| 图片拆层 | `ming-image-0.1-design-layer` | `POST /v1/images/edits` |
-
-接口地址为 `https://maas-api.antdigital.com`。本地实现位于 `server.py`，Cloudflare 实现位于 `cloudflare/worker.mjs`。更换服务商需要同时适配请求和响应格式。
-
-生成和重新拆层会调用 MaaS，费用与权限以服务商规则为准。载入内置示例、查看历史作品和本地图层编辑不调用模型。
+千问接入逻辑移植自 `ref培训海报生成器/ai-proxy.js`，位于 `qwen_client.py`。
 
 ## 项目结构
 
 ```text
-cover-studio/
-├── static/                 # 网页、样式、示例图片及风格数据
+海报工作台V2/
+├── static/
 │   ├── index.html
-│   ├── app.js              # 创作流程与图层编辑器
-│   ├── cloud.js            # 云端请求、IndexedDB 素材库与 ZIP 打包
+│   ├── app.js               # 创作流程、弹窗、API 设置与图层编辑器
+│   ├── training-prompt.js   # 培训海报提示词编译器（纯函数，可单测）
+│   ├── training-form.js     # 培训信息弹窗表单
+│   ├── punk-cover.js        # 封面风格提示词编译器
+│   ├── config.js            # 读取本机默认 Key
 │   └── style.css
-├── cloudflare/
-│   └── worker.mjs          # Cloudflare API 转发
-├── vendor/                 # 第三方 skill 规则、来源和已有许可文件
-├── server.py               # Python 本地服务
-├── wrangler.jsonc          # Workers 与静态资源配置
-├── test_*.mjs / cjs / py    # 检查脚本
-└── 启动.command             # macOS 本地启动入口
+├── server.py                # Python 本地服务：任务队列、素材库、MaaS 调用
+├── qwen_client.py           # 千问 / 百炼图像接口
+├── test_server.py / test_qwen.py / test_training.cjs / test_layers.cjs
+├── vendor/punk-skill/       # 第三方风格规则来源与许可
+├── docs/                    # 设计文档与实施计划
+├── 启动.bat                  # Windows 启动入口
+└── 启动.command              # macOS 启动入口
 ```
 
-## 开发与检查
-
-前端使用原生 HTML、CSS、JavaScript，无需构建。在项目根目录运行：
+## 检查
 
 ```bash
-node --check static/app.js
-node --check static/cloud.js
-node --test test_cloud.mjs
-node test_ponyo.cjs
-python3 -m unittest test_server.py
+python -m unittest test_server.py test_qwen.py
+node test_training.cjs
+node test_layers.cjs
+node --check static/app.js   # 其余 static/*.js 同理
 ```
 
-这些检查不需要真实 API Key，也不会调用付费模型。部署后可先访问 `/api/health` 检查服务，再用自己的 Key 验证一次生成与拆层。
+这些检查不需要真实 API Key，也不会调用付费模型。
 
 ## 已知限制
 
-- 拆出的文字是像素图片，不能直接作为文本修改；当前未提供单图层 AI 修改。
-- 模型可能将多个元素合并到同一层，或在背景中保留主体残影。实际层数、顺序与透明边缘需要检查。
-- 生图比例通过提示词表达，模型实际输出尺寸不保证与选择一致。放大导出尺寸不会增加原图细节。
-- 当前生成接口不支持参考图输入；上传图片用于拆层。
-- 模型处理期间请保持页面打开。网络中断或上游服务错误可能导致请求失败。
+- 拆出的文字是像素图片，不能直接作为文本修改。
+- 模型可能把多个元素合并到同一层，实际层数、顺序与透明边缘需要检查。
+- 千问出图尺寸按上表固定；若所选模型不支持某个尺寸，需要调整 `qwen_client.py` 中的 `SIZES`。
+- 模型处理期间请保持页面打开。
 
 ## 第三方来源
-
-本项目将以下 skill 的设计规则适配为网页中的提示词编译器，不会运行完整 Agent Skill。
 
 | 来源 | 集成内容 | 固定版本 |
 | --- | --- | --- |
 | [Punk-Skill](https://github.com/adrianpunk/Punk-Skill) | 31 种封面与海报风格规则 | `v1.0.0-mit`，提交 `0380629c81b4cc6870722cb99fb6fe0ee416b56f` |
-| [PONYO Cover Anchor System](https://github.com/ponyodong2026/ponyo-cover-anchor-system) | 小红书封面模板与排版规则 | 提交 `f03b7bc8c751e8b5e2e9ead66fd9aa16def22b84` |
 
-Punk 集成仅使用上述 MIT 历史版本，不包含 v2.0.0+ 内容。原始来源与已有授权文件保留在 `vendor/`，Punk 许可证另见 [static/punk-license.txt](static/punk-license.txt)。
-
-## 贡献
-
-欢迎提交问题与改进建议。报告问题时，请附上运行方式、浏览器、复现步骤和不含敏感信息的报错；不要提交 API Key、私人图片或完整请求凭据。
+Punk 集成仅使用上述 MIT 历史版本。原始来源与授权文件保留在 `vendor/`，许可证另见 [static/punk-license.txt](static/punk-license.txt)。
 
 ## 许可证
 
-项目原创代码尚未指定开源许可证。第三方内容按其各自上游许可使用，不能将第三方许可自动视为整个项目的许可。
+项目原创代码尚未指定开源许可证。第三方内容按其各自上游许可使用。

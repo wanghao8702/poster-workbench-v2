@@ -42,9 +42,15 @@
 ### 使用流程
 
 1. **生成**：选择品类。培训海报点「填写培训信息」，填完点「保存并更新提示词」；封面图点「风格与标题设置」，在示例图里点选风格。左栏的完整提示词仍然可以手动修改。选好画面比例后点「生成图片」。
-2. **拆解**：点「继续拆解图层」，也可以上传已有图片；确认图层规划后开始拆解。
-3. **编辑**：在画布中选择图层，拖动位置、缩放大小，在右侧调整显隐和叠放顺序。
-4. **导出**：下载原图、编辑后的合成 PNG、单层 PNG，或原始图层 ZIP。
+2. **拆解或直接编辑**：点「继续拆解图层」把图拆成独立图层；只想加 logo、二维码或一行字时，点「直接编辑」，整张图作为锁定的背景。也可以在「拆解」页上传自己的设计图，上传后会存进素材库。
+3. **编辑**：
+   - 用画布上方的「＋图片」「＋文字」「＋形状」添加内容；图片也可以直接拖进画布或粘贴。双击文字直接改字。
+   - 拖动、缩放、旋转（按住 Shift 以 15° 为步长）；拖动时自动对齐画布中线、边缘和其他图层，按住 Alt 关闭吸附。
+   - 右侧上方是选中图层的属性（位置、尺寸、角度、不透明度；文字的字体、字号、颜色、描边、阴影；形状的填充和圆角），下方是图层列表（显隐、锁定、拖动排序、右键菜单）。
+   - 拆层出来的图层只能隐藏、不能删除；你添加的图片、文字、形状可以删除。快捷键：Ctrl+Z / Ctrl+Shift+Z 撤销重做，Ctrl+D 复制，Delete 删除或隐藏，方向键微调。
+   - **改动自动保存到素材库**（停手 1 秒后），下次在素材库点「载入画布」接着改；「恢复原始图层」可回到模型输出。示例海报的改动不会保存。
+   - 编辑过的图再去拆层时，你加的内容会按比例带到拆层结果上。
+4. **导出**：下载原图、编辑后的合成 PNG、单层 PNG，或原始图层 ZIP（只含模型原始输出）。图片放大超过 150% 时会提醒可能模糊。
 
 ## 培训海报
 
@@ -100,7 +106,7 @@
 - **讲师肖像会发送给你配置的千问服务**，请确认已获得讲师本人同意。
 - 使用 AI 识别填入时，粘贴的文字或上传的文件内容会发送给千问文本模型（同一个百炼 Key），不会保存到 `output/`。
 - API Key 不会写入素材记录、日志或报错信息。
-- 素材库保存模型原始输出，拖动、缩放和显隐等编辑状态不自动保存，请导出合成 PNG。
+- 编辑稿保存在对应记录的 `output/<id>/edit/` 里（`edit.json` 和你上传的图片），模型原始输出不会被改动。「恢复原始图层」会把 `edit/` 移进 `output/.trash/`，需要时可手工找回。
 
 ## 模型接入
 
@@ -118,7 +124,11 @@
 海报工作台V2/
 ├── static/
 │   ├── index.html
-│   ├── app.js               # 创作流程、弹窗、API 设置与图层编辑器
+│   ├── app.js               # 创作流程、弹窗、API 设置、素材库、编辑器接线（自动保存、拆层迁移）
+│   ├── editor.js            # 图层编辑器（Fabric.js）：画布、对象、吸附、撤销、导出
+│   ├── editor-panel.js      # 编辑器的属性面板、图层列表、右键菜单、工具栏
+│   ├── editor-core.js       # 编辑器的纯计算部分（导出比例、编辑稿校验、吸附、撤销栈）
+│   ├── vendor/fabric.min.js # Fabric.js 7.4.0（MIT）
 │   ├── training-prompt.js   # 培训海报提示词编译器（纯函数，可单测）
 │   ├── training-form.js     # 培训信息弹窗表单
 │   ├── punk-cover.js        # 封面风格提示词编译器
@@ -127,7 +137,7 @@
 ├── server.py                # Python 本地服务：任务队列、素材库、MaaS 调用
 ├── qwen_client.py           # 千问 / 百炼图像接口
 ├── training_extract.py      # 读取 txt / md / docx，调用千问文本模型识别培训信息
-├── test_server.py / test_qwen.py / test_extract.py / test_training.cjs / test_layers.cjs / test_app.cjs
+├── test_server.py / test_qwen.py / test_extract.py / test_edits.py / test_training.cjs / test_editor_core.cjs / test_app.cjs
 ├── vendor/punk-skill/       # 第三方风格规则来源与许可
 ├── docs/                    # 开发文档（见 docs/README.md）、初版设计与实施计划
 ├── 启动.bat                  # Windows 启动入口
@@ -139,9 +149,9 @@
 ## 检查
 
 ```bash
-python -m unittest test_server.py test_qwen.py test_extract.py
+python -m unittest test_server.py test_qwen.py test_extract.py test_edits.py
 node test_training.cjs
-node test_layers.cjs
+node test_editor_core.cjs
 node test_app.cjs
 node --check static/app.js   # 其余 static/*.js 同理
 ```
@@ -150,7 +160,8 @@ node --check static/app.js   # 其余 static/*.js 同理
 
 ## 已知限制
 
-- 拆出的文字是像素图片，不能直接作为文本修改。
+- 拆出的文字是像素图片，不能直接作为文本修改；可以隐藏它，再用「＋文字」写一段新的。
+- 字体只用系统字体（微软雅黑、黑体、等线、宋体、仿宋、楷体），在没装某字体的电脑上打开编辑稿会显示成别的字体。
 - 模型可能把多个元素合并到同一层，实际层数、顺序与透明边缘需要检查。
 - 千问出图尺寸按上表固定；若所选模型不支持某个尺寸，需要调整 `qwen_client.py` 中的 `SIZES`。
 - 模型处理期间请保持页面打开。
@@ -160,6 +171,8 @@ node --check static/app.js   # 其余 static/*.js 同理
 | 来源 | 集成内容 | 固定版本 |
 | --- | --- | --- |
 | [Punk-Skill](https://github.com/adrianpunk/Punk-Skill) | 31 种封面与海报风格规则，以及风格示例图（`static/punk-thumbs/`，由仓库 `screenshots/punk-cover-styles/` 缩小为 640 px 宽的 JPEG） | `v1.0.0-mit`，提交 `0380629c81b4cc6870722cb99fb6fe0ee416b56f` |
+
+| [Fabric.js](https://github.com/fabricjs/fabric.js) | 图层编辑器的画布库，本地文件 `static/vendor/fabric.min.js` | `7.4.0`（MIT，许可证见 `static/vendor/fabric-LICENSE.txt`） |
 
 Punk 集成仅使用上述 MIT 历史版本。原始来源与授权文件保留在 `vendor/`，许可证另见 [static/punk-license.txt](static/punk-license.txt)。
 

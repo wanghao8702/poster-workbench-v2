@@ -19,13 +19,18 @@ import uuid
 import webbrowser
 import zipfile
 
+import qwen_client
+
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / 'static'
 OUTPUT = ROOT / 'output'
 KEY_FILE = ROOT / '.local-key'
+QWEN_KEY_FILE = ROOT / '.local-qwen-key'
 API = 'https://maas-api.antdigital.com/v1'
 MODEL = {'generate': 'ming-image-0.1-design', 'split': 'ming-image-0.1-design-layer'}
-MAX_BODY = 32 * 1024 * 1024
+MAX_BODY = 64 * 1024 * 1024
+RATIOS = ('auto', '1:1', '9:16', '16:9', '5:2', '4:3', '3:4')
+PURPOSES = ('cover', 'training', 'free')
 JOBS = {}
 LOCK = threading.Lock()
 POOL = ThreadPoolExecutor(max_workers=2)
@@ -96,7 +101,7 @@ def list_assets():
             if not images: continue
             source = data.get('source_name', '')
             source_url = f'/output/{folder.name}/{urllib.parse.quote(source)}' if source and Path(source).name == source and (folder/source).is_file() else None
-            assets.append({'id': folder.name, 'kind': data['kind'], 'model': MODEL[data['kind']],
+            assets.append({'id': folder.name, 'kind': data['kind'], 'model': str(data.get('model') or MODEL[data['kind']]),
                            'created_at': float(data.get('created_at', path.stat().st_mtime)),
                            'elapsed': data.get('elapsed'), 'prompt': str(data.get('prompt', '')),
                            'ratio': data.get('ratio', 'auto'), 'images': images, 'source_url': source_url,
@@ -106,14 +111,22 @@ def list_assets():
     return sorted(assets, key=lambda item: item['created_at'], reverse=True)
 
 
-def run_job(job_id, kind, key, prompt, image, ratio='auto'):
+def run_job(job_id, kind, key, prompt, image, ratio='auto', qwen=None):
     start = time.monotonic()
     try:
         update(job_id, status='running')
         folder = OUTPUT / job_id
         folder.mkdir(parents=True, exist_ok=True)
         source_name = None
-        if kind == 'generate':
+        model, warnings, result = MODEL[kind], [], {}
+        if kind == 'generate' and qwen:
+            model = qwen['model']
+            blobs, warnings = qwen_client.request_image(key, model, qwen['base_url'], prompt,
+                                                         qwen_client.qwen_size(ratio, qwen['purpose']), qwen['references'])
+            for idx, ref in enumerate(qwen['references'], 1):
+                (folder / f'ref-{idx:02d}.{image_type(ref)}').write_bytes(ref)
+            result = {'data': [{'b64_json': base64.b64encode(blob).decode()} for blob in blobs]}
+        elif kind == 'generate':
             body = json.dumps({'model': MODEL[kind], 'prompt': prompt}, ensure_ascii=False).encode()
             mime = 'application/json'
             endpoint = '/images/generations'
@@ -126,11 +139,12 @@ def run_job(job_id, kind, key, prompt, image, ratio='auto'):
             image_mime = {'png': 'image/png', 'jpg': 'image/jpeg', 'webp': 'image/webp'}[ext]
             body = body.replace(b'filename="input.png"\r\nContent-Type: image/png', f'filename="input.{ext}"\r\nContent-Type: {image_mime}'.encode(), 1)
             endpoint = '/images/edits'
-        req = urllib.request.Request(API + endpoint, data=body, headers={
-            'Authorization': 'Bearer ' + key, 'Content-Type': mime,
-        }, method='POST')
-        with urllib.request.urlopen(req, timeout=600) as response:
-            result = json.load(response)
+        if not result:
+            req = urllib.request.Request(API + endpoint, data=body, headers={
+                'Authorization': 'Bearer ' + key, 'Content-Type': mime,
+            }, method='POST')
+            with urllib.request.urlopen(req, timeout=600) as response:
+                result = json.load(response)
         images = []
         for idx, item in enumerate(result.get('data', []), 1):
             if item.get('b64_json'):
@@ -149,7 +163,7 @@ def run_job(job_id, kind, key, prompt, image, ratio='auto'):
             images.append({'url': f'/output/{job_id}/{filename}', 'name': filename})
         if not images: raise ValueError('服务未返回图片，请检查模型权限或稍后重试。')
         elapsed = round(time.monotonic() - start, 1)
-        manifest = {'model': MODEL[kind], 'kind': kind, 'elapsed': elapsed, 'images': images,
+        manifest = {'model': model, 'provider': 'qwen' if qwen and kind == 'generate' else 'maas', 'warnings': warnings, 'kind': kind, 'elapsed': elapsed, 'images': images,
                     'created_at': time.time(), 'source_name': source_name, 'ratio': ratio,
                     'usage': result.get('usage'), 'prompt': prompt,
                     'note': '图层顺序保留模型返回顺序。文字图层为像素图。'}
@@ -159,20 +173,58 @@ def run_job(job_id, kind, key, prompt, image, ratio='auto'):
             for item in images: archive.write(folder / item['name'], item['name'])
             archive.write(folder / 'manifest.json', 'manifest.json')
             archive.write(folder / 'prompt.txt', 'prompt.txt')
-        update(job_id, status='done', elapsed=elapsed, images=images, usage=result.get('usage'),
+        update(job_id, status='done', elapsed=elapsed, images=images, usage=result.get('usage'), warnings=warnings,
                zip_url=f'/output/{job_id}/images.zip')
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors='replace').replace(key, '[REDACTED]')
-        try: detail = json.loads(detail).get('error', {}).get('message', detail)
+        try:
+            parsed = json.loads(detail)
+            detail = (parsed.get('error') or {}).get('message') or parsed.get('message') or detail
         except (ValueError, AttributeError): pass
+        detail = str(detail).replace(key, '[REDACTED]')
         hints = {400: '请求参数被拒绝。', 401: 'API key 无效或已过期。', 403: '当前 key 无权调用模型。',
-                 429: '额度不足或请求过于频繁。'}
+                 404: '上游接口不存在，请检查 Base URL 和模型名。', 429: '额度不足或请求过于频繁。'}
         update(job_id, status='error', error=f'HTTP {exc.code} · {hints.get(exc.code, "模型服务暂时不可用。")} {detail[:600]}')
     except Exception as exc:
         message = str(exc).replace(key, '[REDACTED]')
         update(job_id, status='error', error=f'请求失败：{message[:600]}')
     finally:
         key = None
+
+
+def validate_job_payload(payload):
+    """Check a /api/jobs request and return the arguments run_job needs."""
+    kind = payload.get('kind')
+    if kind not in MODEL: raise ValueError('未知任务类型。')
+    key = payload.get('key', '')
+    key = key.strip() if isinstance(key, str) else ''
+    if not key or len(key) > 512 or '\n' in key or '\r' in key: raise ValueError('请填写有效的 API key。')
+    prompt = payload.get('prompt', '')
+    prompt = prompt.strip() if isinstance(prompt, str) else ''
+    if not prompt or len(prompt) > 16000: raise ValueError('请填写提示词（最多 16000 字）。')
+    image = decode_image(payload.get('image', '')) if kind == 'split' else None
+    ratio = payload.get('ratio', 'auto')
+    if ratio not in RATIOS: raise ValueError('未知画面比例。')
+    provider = payload.get('provider', 'maas')
+    if provider not in ('maas', 'qwen'): raise ValueError('未知生图接口。')
+    qwen = None
+    if kind == 'generate' and provider == 'qwen':
+        model = payload.get('model')
+        if not isinstance(model, str) or not re.fullmatch(r'[\w.\-]{1,100}', model): raise ValueError('千问模型名无效。')
+        base_url = payload.get('base_url')
+        parsed = urllib.parse.urlparse(base_url) if isinstance(base_url, str) and len(base_url) <= 500 else None
+        if not parsed or parsed.scheme != 'https' or not parsed.netloc:
+            raise ValueError('千问 Base URL 必须是 https:// 开头的地址。')
+        purpose = payload.get('purpose')
+        if purpose not in PURPOSES: raise ValueError('未知创作品类。')
+        refs = payload.get('references', [])
+        if not isinstance(refs, list) or len(refs) > 10: raise ValueError('讲师肖像最多 10 张。')
+        references = []
+        for ref in refs:
+            if not isinstance(ref, dict) or not isinstance(ref.get('data'), str): raise ValueError('讲师肖像数据无效。')
+            references.append(decode_image(ref['data']))
+        qwen = {'model': model, 'base_url': base_url, 'purpose': purpose, 'references': references}
+    return {'kind': kind, 'key': key, 'prompt': prompt, 'image': image, 'ratio': ratio, 'qwen': qwen}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -205,8 +257,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/health': return self.respond(200, {'ok': True})
         if path == '/api/assets': return self.respond(200, {'assets': list_assets()})
         if path == '/api/config':
-            key = KEY_FILE.read_text(encoding='utf-8').strip() if KEY_FILE.is_file() else ''
-            return self.respond(200, {'runtime': 'local', 'default_key': key})
+            read = lambda path: path.read_text(encoding='utf-8').strip() if path.is_file() else ''
+            return self.respond(200, {'runtime': 'local', 'default_key': read(KEY_FILE), 'default_qwen_key': read(QWEN_KEY_FILE)})
         if path.startswith('/api/jobs/'):
             job_id = path.removeprefix('/api/jobs/')
             with LOCK: job = dict(JOBS[job_id]) if job_id in JOBS else None
@@ -229,21 +281,14 @@ class Handler(BaseHTTPRequestHandler):
             if self.path.startswith('/api/assets/'):
                 move_asset(payload.get('id'), restore=self.path.endswith('/restore'))
                 return self.respond(200, {'ok': True})
-            kind = payload.get('kind')
-            if kind not in MODEL: raise ValueError('未知任务类型。')
-            key = payload.get('key', '').strip()
-            if not key or len(key) > 512 or '\n' in key or '\r' in key: raise ValueError('请填写有效的 API key。')
-            prompt = payload.get('prompt', '').strip()
-            if not prompt or len(prompt) > 16000: raise ValueError('请填写提示词（最多 16000 字）。')
-            image = decode_image(payload.get('image', '')) if kind == 'split' else None
-            ratio = payload.get('ratio', 'auto')
-            if ratio not in ('auto', '1:1', '9:16', '16:9', '5:2', '4:3', '3:4'): raise ValueError('未知画面比例。')
+            job = validate_job_payload(payload)
+            kind = job['kind']
             with LOCK:
                 if sum(j['status'] in ('queued', 'running') for j in JOBS.values()) >= 2:
                     return self.respond(429, {'error': '已有两个任务进行中，请稍后再试。'})
                 job_id = secrets.token_urlsafe(18)
                 JOBS[job_id] = {'id': job_id, 'kind': kind, 'status': 'queued'}
-            POOL.submit(run_job, job_id, kind, key, prompt, image, ratio)
+            POOL.submit(run_job, job_id, kind, job['key'], job['prompt'], job['image'], job['ratio'], job['qwen'])
             self.respond(202, {'id': job_id})
         except (ValueError, TypeError, AttributeError, OSError) as exc:
             self.respond(400, {'error': str(exc)})

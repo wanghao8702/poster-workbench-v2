@@ -19,6 +19,10 @@ assert.ok(!/讲师|参考图/.test(p),p);
 assert.ok(!/undefined|null|NaN/.test(p));
 // test_blank_speaker_is_ignored
 assert.ok(!/讲师/.test(T.compile({...min,lecturerMode:'portrait',speakers:[{...T.defaultSpeaker(0)}]},qwen).prompt));
+// test_text_mode_ignores_photo_only_speaker
+const photoOnly={...min,lecturerMode:'text',speakers:[{...T.defaultSpeaker(0),photoName:'a.jpg'}]};
+assert.ok(!/讲师/.test(T.compile(photoOnly,qwen).prompt));
+assert.ok(T.compile({...photoOnly,lecturerMode:'portrait'},qwen).prompt.includes('出镜讲师'));
 // test_date_format
 assert.ok(T.compile({...base,date:'2026-03-05'},qwen).prompt.includes('2026 年 3 月 5 日'));
 // test_ai_decides_style

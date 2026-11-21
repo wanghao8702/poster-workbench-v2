@@ -147,7 +147,7 @@ const TrainingForm=(()=>{
  function summary(values){
   const v=values||read();
   const topic=v.topic.length>14?v.topic.slice(0,14)+'…':v.topic;
-  const count=v.speakers.filter(s=>s.name||s.title||s.bio||s.photoName).length;
+  const count=v.speakers.filter(s=>s.name||s.title||s.bio||(v.lecturerMode!=='text'&&s.photoName)).length;
   return [topic,count?`${count} 位讲师`:''].filter(Boolean).join(' · ');
  }
  function updateHint(){

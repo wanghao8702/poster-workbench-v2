@@ -64,4 +64,27 @@ const plain=v=>JSON.parse(JSON.stringify(v));
  assert.equal(m.provider,'maas');assert.equal(m.key,'mk');assert.equal(m.references,undefined);
  assert.deepEqual(plain(p.jobPayload('split','拆','3:4')),{kind:'split',prompt:'拆',key:'mk',ratio:'auto',provider:'maas'});
  console.log('生成请求的肖像与提示词编译结果一致检查通过');
+
+ // test_confirm_before_generating_with_stale_prompt
+ const asked=[];
+ const c=sandbox({staleCategories:new Map([['training','生图设置已变，提示词可能不再准确。']]),confirm:m=>{asked.push(m);return c.answer;}});
+ vm.runInContext(slice('function confirmStale(','async function submit('),c);
+ c.answer=false;
+ assert.equal(c.confirmStale('training',2),false,'取消时不应生成');
+ assert.match(asked[0],/生图设置已变/);assert.match(asked[0],/2 张讲师肖像/);
+ c.answer=true;
+ assert.equal(c.confirmStale('training',0),true);
+ assert.ok(!/张讲师肖像/.test(asked[1]),'不发肖像时不提肖像');
+ assert.equal(c.confirmStale('cover',3),true);
+ assert.equal(asked.length,2,'没有提示条的品类不弹确认');
+ console.log('提示词与生图设置不一致时，生成前确认检查通过');
+
+ // test_summary_ignores_photo_only_speaker_in_text_mode
+ const formCtx={TrainingPoster,document:{},localStorage:{getItem:()=>null,setItem(){}},URL:{}};
+ vm.createContext(formCtx);
+ vm.runInContext(fs.readFileSync(__dirname+'/static/training-form.js','utf8')+';this.TrainingForm=TrainingForm;',formCtx);
+ const photoOnly={topic:'安全生产月',lecturerMode:'text',speakers:[{name:'',title:'',bio:'',photoName:'a.jpg'},{name:'林悦',title:'',bio:'',photoName:''}]};
+ assert.equal(formCtx.TrainingForm.summary(photoOnly),'安全生产月 · 1 位讲师');
+ assert.equal(formCtx.TrainingForm.summary({...photoOnly,lecturerMode:'portrait'}),'安全生产月 · 2 位讲师');
+ console.log('仅文字模式下只有照片的讲师不计入检查通过');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -158,6 +158,16 @@ class WorkflowTest(unittest.TestCase):
             server.run_job('test', 'generate', KEY, '测试', None, '3:4', {**self.QWEN, 'references': []})
         self.assertNotIn(KEY, server.JOBS['test']['error'])
 
+    def test_maas_image_download_failure_message(self):
+        reply = io.BytesIO(json.dumps({'data': [{'url': 'https://oss.example/x.png'}]}).encode())
+        expired = urllib.error.HTTPError('https://oss.example/x.png', 403, 'Forbidden', {}, io.BytesIO(b'expired'))
+        # server and qwen_client share the urllib.request module: first call is MaaS, second the image download.
+        with patch('server.urllib.request.urlopen', side_effect=[reply, expired]):
+            server.run_job('test', 'generate', KEY, '测试', None)
+        error = server.JOBS['test']['error']
+        self.assertIn('结果图片下载失败', error)
+        self.assertNotIn('API key', error)
+
     def test_split_still_uses_maas(self):
         with patch('server.urllib.request.urlopen', return_value=self.reply(2)) as api:
             server.run_job('test', 'split', KEY, '拆层', PNG)

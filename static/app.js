@@ -433,6 +433,13 @@ function jobPayload(kind,prompt,ratio){
  }
  return payload;
 }
+/* The prompt was compiled for other settings or loaded from history: ask before spending a paid generation. */
+function confirmStale(category,refCount){
+ const reason=staleCategories.get(category);
+ if(!reason)return true;
+ const refs=refCount?`本次会发送 ${refCount} 张讲师肖像，但提示词里可能没有对应描述。\n`:'';
+ return confirm(`${reason}\n${refs}\n点「确定」按当前提示词生成；点「取消」返回，可点提示条上的「重新拼装」。`);
+}
 async function submit(kind) {
  if(busy)return;
  let prompt=(kind==='generate'?promptEditor():$('split-prompt')).value.trim();
@@ -442,11 +449,12 @@ async function submit(kind) {
  if(prompt.length>16000){notify('提示词加上比例说明后不能超过 16000 字，请缩短描述。',true);return;}
  if(kind==='split'&&!currentImage){notify('请先生成或上传一张图片，也可以载入示例。',true);return;}
  if(!needKey(kind))return;
+ const payload=jobPayload(kind,prompt,ratio);
+ if(kind==='generate'&&!confirmStale(purpose,payload.references?payload.references.length:0)){payload.key='';$('recompile-prompt').focus();return;}
  setBusy(true,kind);notify('');
  if(window.matchMedia('(max-width:900px)').matches)$('canvas-stage').scrollIntoView({behavior:'smooth',block:'center'});
  let polling = false;
  try {
-  const payload=jobPayload(kind,prompt,ratio);
   if(kind==='split')payload.image=await asDataURL(currentImage);
   const resp=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   payload.key='';

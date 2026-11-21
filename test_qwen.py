@@ -2,6 +2,7 @@ import base64
 import io
 import json
 import unittest
+import urllib.error
 from unittest.mock import patch
 
 import qwen_client
@@ -90,6 +91,15 @@ class QwenClientTest(unittest.TestCase):
     def test_download_rejects_non_https(self):
         with patch('qwen_client.urllib.request.urlopen', return_value=dash_reply('http://oss.example/x.png')):
             with self.assertRaisesRegex(ValueError, '服务返回了不支持的图片地址。'):
+                qwen_client.request_image(KEY, 'qwen-image-3.0-pro', DASH, '提示词', (1140, 1472), [])
+
+    def test_download_failure_is_not_reported_as_key_error(self):
+        expired = urllib.error.HTTPError('https://oss.example/x.png', 403, 'Forbidden', {}, io.BytesIO(b'expired'))
+        with patch('qwen_client.urllib.request.urlopen', side_effect=[dash_reply(), expired]):
+            with self.assertRaisesRegex(ValueError, '结果图片下载失败'):
+                qwen_client.request_image(KEY, 'qwen-image-3.0-pro', DASH, '提示词', (1140, 1472), [])
+        with patch('qwen_client.urllib.request.urlopen', side_effect=[dash_reply(), urllib.error.URLError('timed out')]):
+            with self.assertRaisesRegex(ValueError, '结果图片下载失败'):
                 qwen_client.request_image(KEY, 'qwen-image-3.0-pro', DASH, '提示词', (1140, 1472), [])
 
     def test_openai_protocol_rejected(self):

@@ -67,7 +67,7 @@ const TrainingPoster=(()=>{
   const speakers=(Array.isArray(v.speakers)?v.speakers:[]).map((s,index)=>({
    index,name:str(s&&s.name),title:str(s&&s.title),bio:str(s&&s.bio),photoName:str(s&&s.photoName),
    pose:POSES[s&&s.pose]?s.pose:'standing',outfit:OUTFITS[s&&s.outfit]?s.outfit:'suit'
-  })).filter(s=>s.name||s.title||s.bio||s.photoName);
+  })).filter(s=>s.name||s.title||s.bio||(mode!=='text'&&s.photoName));
   const limit=o.provider==='qwen'&&mode!=='text'?Math.max(0,Number(o.maxRefImages)||0):0;
   const refSpeakers=speakers.filter(s=>s.photoName).slice(0,limit);
   const hasRef=s=>refSpeakers.includes(s);

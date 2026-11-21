@@ -9,6 +9,7 @@ Ported from ref培训海报生成器/ai-proxy.js (v3.7). Tested behaviour kept a
 import base64
 import json
 import re
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -66,10 +67,16 @@ def _post(url, key, payload):
         except ValueError: raise ValueError('上游图片服务返回了无法识别的数据。')
 
 
-def _download(url):
+def download_image(url):
+    """Fetch a generated image from its (often temporary) URL. Failures here are not API-key problems."""
     if urllib.parse.urlparse(url).scheme != 'https': raise ValueError('服务返回了不支持的图片地址。')
-    with urllib.request.urlopen(url, timeout=60) as response:
-        blob = response.read(DOWNLOAD_LIMIT + 1)
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            blob = response.read(DOWNLOAD_LIMIT + 1)
+    except urllib.error.HTTPError as exc:
+        raise ValueError(f'结果图片下载失败（HTTP {exc.code}，临时链接可能已过期），请重新生成。') from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise ValueError('结果图片下载失败（网络中断或超时），请重新生成。') from None
     if len(blob) > DOWNLOAD_LIMIT: raise ValueError('返回图片超过 20 MB。')
     return blob
 
@@ -93,7 +100,7 @@ def request_image(key, model, base_url, prompt, size, refs):
         except (KeyError, IndexError, TypeError): parts = []
         urls = [part['image'] for part in parts if isinstance(part, dict) and isinstance(part.get('image'), str) and part['image']]
         if not urls: raise ValueError('上游图片服务返回了无法识别的数据。')
-        return [_download(url) for url in urls[:1]], warnings
+        return [download_image(url) for url in urls[:1]], warnings
     payload = {'model': model, 'prompt': prompt, 'size': f'{width}x{height}', 'n': 1, 'prompt_extend': False}
     if used: payload['image'] = [_data_url(blob) for blob in used]
     base = base_url.rstrip('/')
@@ -103,5 +110,5 @@ def request_image(key, model, base_url, prompt, size, refs):
     if not items or not isinstance(items[0], dict): raise ValueError('上游图片服务返回了无法识别的数据。')
     item = items[0]
     if item.get('b64_json'): return [base64.b64decode(item['b64_json'], validate=True)], warnings
-    if item.get('url'): return [_download(item['url'])], warnings
+    if item.get('url'): return [download_image(item['url'])], warnings
     raise ValueError('上游图片服务返回了无法识别的数据。')

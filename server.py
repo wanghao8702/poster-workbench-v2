@@ -150,11 +150,7 @@ def run_job(job_id, kind, key, prompt, image, ratio='auto', qwen=None):
             if item.get('b64_json'):
                 blob = base64.b64decode(item['b64_json'], validate=True)
             elif item.get('url'):
-                url = item['url']
-                if urllib.parse.urlparse(url).scheme != 'https': raise ValueError('服务返回了不支持的图片地址。')
-                with urllib.request.urlopen(url, timeout=60) as response:
-                    blob = response.read(20 * 1024 * 1024 + 1)
-                if len(blob) > 20 * 1024 * 1024: raise ValueError('返回图片超过 20 MB。')
+                blob = qwen_client.download_image(item['url'])
             else:
                 continue
             ext = image_type(blob)

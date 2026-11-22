@@ -3,7 +3,6 @@ __pycache__/
 .local-key
 .wrangler/
 node_modules/
-.env
 .env.*
 .dev.vars
 .dev.vars.*

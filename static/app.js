@@ -1,6 +1,9 @@
 'use strict';
 const $ = id => document.getElementById(id);
 let mode = 'generate', currentImage = null, busy = false;
+/* Hosted anywhere but this machine (e.g. Vercel) there is no local Python service: only the sample and the editor work. */
+const DEMO = !['127.0.0.1', 'localhost'].includes(location.hostname);
+const DEMO_MSG = '在线演示版只能体验「载入示例」和图层编辑；生成、拆层、AI 识别和素材库需要在本机运行（下载项目后双击 启动.bat）。';
 let timer = null, taskId = null, statusTimer = null;
 /* What the stage shows: a library record {id, kind, baseUrl, layers, zip, title}, or null (the sample / nothing). */
 let currentAsset = null;
@@ -124,6 +127,7 @@ $('qwen-base-url').onchange=rememberGenSettings;
 $('text-model').onchange=rememberGenSettings;
 /* AI 识别填入: the training form hands over pasted text or a file; the local server calls the Qwen text model. */
 TrainingForm.setExtractor(async body=>{
+ if(DEMO)throw new Error(DEMO_MSG);
  const key=$('qwen-key').value.trim();
  // The dialog is modal, so the key panel behind it cannot be used until the dialog closes.
  if(!key)throw new Error('还没有千问 API Key：请先点「取消」关闭弹窗，在右上角「API 设置」填写后再来识别（生图选 MaaS 时也需要它）。');
@@ -435,6 +439,7 @@ async function postJSON(url,body){
 /* An uploaded design becomes a library record first, so it can be edited and saved like a generated image. */
 async function uploadFile(file) {
  if(busy)return;
+ if(DEMO){notify(DEMO_MSG,true);return;}
  try {
   const item=await postJSON('/api/assets/import',{name:file.name,data:await fileData(file)});
   await loadSource(item.source_url,file.name,assetFromItem(item));
@@ -487,6 +492,7 @@ function confirmStale(category,refCount){
 }
 async function submit(kind) {
  if(busy)return;
+ if(DEMO){notify(DEMO_MSG,true);return;}
  let prompt=(kind==='generate'?promptEditor():$('split-prompt')).value.trim();
  if(!prompt){notify('请先填写提示词。',true);return;}
  const ratio=$('generate-ratio').value;
@@ -646,6 +652,7 @@ async function openAsset(item){
  finally{setBusy(false,'load');}
 }
 $('open-library').onclick=()=>{
+ if(DEMO){notify(DEMO_MSG,true);return;}
  const show=$('asset-library').hidden;$('asset-library').hidden=!show;$('open-library').setAttribute('aria-expanded',String(show));
  if(show){showKeyPanel(false);refreshLibrary();$('close-library').focus();}
 };
@@ -724,6 +731,7 @@ $('export-composite').onclick=async()=>{
 };
 document.addEventListener('keydown',event=>{if(!$('asset-library').hidden&&event.key==='Escape')closeLibrary();});
 async function init(){
+ if(DEMO){$('demo-banner').hidden=false;$('demo-banner').textContent=DEMO_MSG;}
  PosterEditor.init({host:$('editor-host'),canvasEl:$('editor-canvas'),stage:$('canvas-stage'),notify,uploader:uploadToRecord,
   onChange:onEditorChange,onLayers:()=>EditorPanel.refresh(),onSelection:obj=>EditorPanel.onSelection(obj),
   onContextMenu:(target,x,y)=>{if(target&&!busy)EditorPanel.openMenu(target.pe.id,x,y);},
@@ -753,7 +761,7 @@ async function init(){
     if(config.default_qwen_key&&!$('qwen-key').value.trim()){$('qwen-key').value=config.default_qwen_key;loaded=true;}
     if(loaded)$('key-note').textContent=`已从本机 ${config.source==='.env'?'.env':'.local-key 文件'} 载入 Key。这里的修改只在当前页面生效，不会写回配置文件。`;
     if(applyEnvSettings(config)){updateGenUI();resyncPrompts();}
-   }catch(e){notify('服务连接失败，请确认本地服务仍在运行后刷新页面。',true);}
+   }catch(e){if(!DEMO)notify('服务连接失败，请确认本地服务仍在运行后刷新页面。',true);}
    keyState();
   })()
  ]);

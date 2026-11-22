@@ -363,3 +363,7 @@ textarea:focus{border-color:var(--green);outline:0}
 .ctx-row>span:first-child{color:var(--muted);min-width:28px}
 .ctx-row input[type=range]{width:120px}
 .ctx-row output{min-width:36px;text-align:right;color:var(--muted)}
+
+/* ---------- Hosted demo notice ---------- */
+.demo-banner{margin:0;padding:6px 18px;background:#fbf3d9;color:#6b5414;font-size:12px;text-align:center}
+.demo-banner[hidden]{display:none}

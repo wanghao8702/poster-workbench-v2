@@ -1,0 +1,10 @@
+# Only static/ is served (see vercel.json); never upload secrets or local data.
+.env
+.env.*
+.local-key
+.local-qwen-key
+output/
+dist-miaoda/
+__pycache__/
+.superpowers/
+*.md

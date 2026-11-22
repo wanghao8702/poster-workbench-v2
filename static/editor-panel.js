@@ -146,93 +146,97 @@ const EditorPanel=(()=>{
  }
 
  /* ---------- properties ---------- */
- function field(label,input,extra){return h('label',{class:'prop-field'},h('span',{text:label}),input,extra||null);}
- function num(key,attrs={}){return h('input',{type:'number',class:'size-select','data-key':key,step:attrs.step||1,min:attrs.min,max:attrs.max});}
- function colorInput(key){
-  const picker=h('input',{type:'color','data-key':key,'aria-label':'选择颜色'});
+ /* ---------- style bar (above the canvas) ----------
+    Position, size and rotation are left to the mouse. Only what the mouse cannot do is here:
+    text and shape styling, and opacity for anything the user added. Split layers get nothing. */
+ const STYLED=['text','shape','image'];
+ function num(key,attrs={}){return h('input',{type:'number',class:'ctx-num','data-key':key,step:attrs.step||1,min:attrs.min,max:attrs.max,'aria-label':attrs.label||key,title:attrs.label||''});}
+ function colorInput(key,label,withSwatches){
+  const picker=h('input',{type:'color','data-key':key,'aria-label':label,title:label});
+  if(!withSwatches)return picker;
   // Colours are set from script: the page's CSP forbids inline style attributes, not element.style.
-  const sw=h('span',{class:'prop-swatches'},...swatches.map(c=>{const b=h('button',{type:'button',class:'swatch','data-color':c,title:c,'aria-label':`使用颜色 ${c}`});b.style.background=c;return b;}));
-  return h('span',{class:'prop-color'},picker,sw);
+  const sw=h('span',{class:'ctx-swatches'},...swatches.map(c=>{const b=h('button',{type:'button',class:'swatch','data-color':c,title:c,'aria-label':`使用颜色 ${c}`});b.style.background=c;return b;}));
+  return h('span',{class:'ctx-color'},picker,sw);
  }
- function buildProps(obj){
-  const box=$('props'),previous=propsFor;
-  propsFor=obj?obj.pe.id:null; // set first: recording below refreshes the panel, which must not rebuild again
-  // A value typed into the panel is already applied live; record it before its input disappears with the old selection.
-  if(previous&&box.contains(document.activeElement)&&E.objects().some(o=>o.pe.id===previous))E.commitNow();
-  box.replaceChildren();
-  box.hidden=!obj;if(!obj)return;
-  const k=obj.pe.kind;
-  box.append(h('div',{class:'props-title'},h('strong',{text:`${KIND_LABEL[k]}属性`}),h('span',{text:obj.pe.name||''})));
-  const grid=h('div',{class:'prop-grid'},field('X',num('x')),field('Y',num('y')),field('宽',num('w',{min:1})),field('高',num('h',{min:1})),
-   field('旋转°',num('angle',{min:-360,max:360})),field('不透明 %',num('opacity',{min:0,max:100})));
-  box.append(grid);
-  if(k==='text'){
-   const fonts=h('select',{class:'size-select','data-key':'fontName'},...C.FONTS.map(f=>h('option',{value:f.name,text:fontOk[f.name]===false?`${f.name}（本机未安装）`:f.name})));
-   box.append(field('文字内容',h('textarea',{class:'prop-text','data-key':'text',maxlength:2000,rows:3})),
-    h('div',{class:'prop-grid'},field('字体',fonts),field('字号',num('fontSize',{min:4,max:1000})),
-     field('行距',num('lineHeight',{min:0.5,max:5,step:0.1})),field('字距',num('charSpacing',{min:-500,max:2000,step:10}))),
-    field('颜色',colorInput('fill')),
-    h('div',{class:'prop-toggles'},
-     h('label',{},h('input',{type:'checkbox','data-key':'bold'}),'加粗'),h('label',{},h('input',{type:'checkbox','data-key':'italic'}),'斜体'),
-     h('select',{class:'size-select','data-key':'textAlign','aria-label':'对齐'},h('option',{value:'left',text:'左对齐'}),h('option',{value:'center',text:'居中'}),h('option',{value:'right',text:'右对齐'}))),
-    h('div',{class:'prop-sub'},h('label',{},h('input',{type:'checkbox','data-key':'strokeOn'}),'描边'),h('input',{type:'color','data-key':'stroke','aria-label':'描边颜色'}),field('粗细',num('strokeWidth',{min:0,max:100}))),
-    h('div',{class:'prop-sub'},h('label',{},h('input',{type:'checkbox','data-key':'shadowOn'}),'阴影'),h('input',{type:'color','data-key':'shadowColor','aria-label':'阴影颜色'}),
-     field('模糊',num('shadowBlur',{min:0,max:200})),field('偏移',num('shadowOffset',{min:-200,max:200}))));
-  }else if(k==='shape'){
-   box.append(field('填充',colorInput('fill')),
-    h('div',{class:'prop-sub'},h('label',{},h('input',{type:'checkbox','data-key':'strokeOn'}),'描边'),h('input',{type:'color','data-key':'stroke','aria-label':'描边颜色'}),field('粗细',num('strokeWidth',{min:0,max:200}))));
-   if(obj.pe.shape==='roundrect')box.append(field('圆角',num('rx',{min:0})));
-  }else{
-   box.append(h('p',{class:'prop-note','data-key':'imageNote'}));
+ const toggle=(key,text,label,cls='')=>h('label',{class:`ctx-toggle ${cls}`,title:label},h('input',{type:'checkbox','data-key':key,'aria-label':label}),text);
+ const ctxRow=(label,...items)=>h('label',{class:'ctx-row'},h('span',{text:label}),...items);
+ // A small drop-down panel; the summary shows its name, the body holds the less frequent settings.
+ const pop=(name,...body)=>h('details',{class:'ctx-pop'},h('summary',{text:name}),h('div',{class:'ctx-pop-body'},...body));
+ const sep=()=>h('i',{class:'divider','aria-hidden':'true'});
+ function opacityPop(){
+  return pop('透明度',ctxRow('不透明度',h('input',{type:'range','data-key':'opacity',min:0,max:100,step:1,'aria-label':'不透明度'}),h('output',{'data-key':'opacityText'})));
+ }
+ function strokePop(max){
+  return pop('描边',h('label',{class:'ctx-row'},h('input',{type:'checkbox','data-key':'strokeOn'}),h('span',{text:'显示描边'})),
+   ctxRow('颜色',colorInput('stroke','描边颜色')),ctxRow('粗细',num('strokeWidth',{min:0,max,label:'描边粗细'})));
+ }
+ function buildBar(obj){
+  const bar=$('style-bar'),previous=propsFor;
+  const target=obj&&STYLED.includes(obj.pe.kind)?obj:null;
+  propsFor=target?target.pe.id:null; // set first: recording below refreshes the panel, which must not rebuild again
+  // A value typed into the bar is already applied live; record it before its input disappears with the old selection.
+  if(previous&&bar.contains(document.activeElement)&&E.objects().some(o=>o.pe.id===previous))E.commitNow();
+  bar.replaceChildren();
+  if(!target){
+   bar.append(h('span',{class:'ctx-empty',text:'选中文字、形状或你添加的图片，可在这里改样式；位置、大小、角度直接用鼠标拖。'}));
+   return;
   }
-  box.oninput=e=>apply(e.target,false);
-  box.onchange=e=>apply(e.target,true);
-  box.onclick=e=>{const sw=e.target.closest('.swatch');if(sw){const input=sw.closest('.prop-color').querySelector('input[type=color]');input.value=sw.dataset.color;apply(input,true);}};
-  syncProps(obj);
+  const k=target.pe.kind;
+  if(k==='text'){
+   const fonts=h('select',{class:'ctx-select','data-key':'fontName','aria-label':'字体'},...C.FONTS.map(f=>h('option',{value:f.name,text:fontOk[f.name]===false?`${f.name}（本机未安装）`:f.name})));
+   const align=h('select',{class:'ctx-select','data-key':'textAlign','aria-label':'对齐'},h('option',{value:'left',text:'左对齐'}),h('option',{value:'center',text:'居中'}),h('option',{value:'right',text:'右对齐'}));
+   bar.append(fonts,num('fontSize',{min:4,max:1000,label:'字号'}),colorInput('fill','文字颜色',true),sep(),
+    toggle('bold','B','加粗'),toggle('italic','I','斜体','ctx-italic'),align,sep(),
+    strokePop(100),
+    pop('阴影',h('label',{class:'ctx-row'},h('input',{type:'checkbox','data-key':'shadowOn'}),h('span',{text:'显示阴影'})),
+     ctxRow('颜色',colorInput('shadowColor','阴影颜色')),ctxRow('模糊',num('shadowBlur',{min:0,max:200,label:'阴影模糊'})),ctxRow('偏移',num('shadowOffset',{min:-200,max:200,label:'阴影偏移'}))),
+    pop('间距',ctxRow('行距',num('lineHeight',{min:0.5,max:5,step:0.1,label:'行距'})),ctxRow('字距',num('charSpacing',{min:-500,max:2000,step:10,label:'字距'}))),
+    opacityPop());
+  }else if(k==='shape'){
+   bar.append(h('span',{class:'ctx-label',text:'填充'}),colorInput('fill','填充颜色',true),sep(),strokePop(200));
+   if(target.pe.shape==='roundrect')bar.append(h('span',{class:'ctx-label',text:'圆角'}),num('rx',{min:0,label:'圆角'}));
+   bar.append(opacityPop());
+  }else{
+   bar.append(opacityPop(),h('span',{class:'ctx-note','data-key':'imageNote'}));
+  }
+  syncBar(target);
  }
  const toHex=c=>{if(typeof c!=='string')return '#000000';if(/^#[0-9a-f]{6}$/i.test(c))return c;if(/^#[0-9a-f]{3}$/i.test(c))return '#'+[...c.slice(1)].map(x=>x+x).join('');const m=c.match(/\d+/g);return m&&m.length>=3?'#'+m.slice(0,3).map(v=>Number(v).toString(16).padStart(2,'0')).join(''):'#000000';};
- function syncProps(obj){
-  const box=$('props');if(!obj||box.hidden)return;
-  const r=obj.getBoundingRect(),s=obj.shadow,natural=E.imageInfo(obj);
-  const values={x:Math.round(r.left),y:Math.round(r.top),w:Math.round(obj.getScaledWidth()),h:Math.round(obj.getScaledHeight()),
-   angle:Math.round(obj.angle),opacity:Math.round(obj.opacity*100),text:obj.text,fontName:obj.pe.fontName,fontSize:Math.round(obj.fontSize||0),
+ function syncBar(obj){
+  const bar=$('style-bar');if(!obj||obj.pe.id!==propsFor)return;
+  const s=obj.shadow;
+  const values={opacity:Math.round(obj.opacity*100),fontName:obj.pe.fontName,fontSize:Math.round(obj.fontSize||0),
    lineHeight:obj.lineHeight,charSpacing:obj.charSpacing,fill:toHex(obj.fill),bold:obj.fontWeight==='bold',italic:obj.fontStyle==='italic',
    textAlign:obj.textAlign,strokeOn:obj.strokeWidth>0,stroke:toHex(obj.stroke||'#ffffff'),strokeWidth:obj.strokeWidth,
    shadowOn:!!s,shadowColor:toHex(s?.color||'#000000'),shadowBlur:s?.blur??8,shadowOffset:s?.offsetY??4,rx:Math.round(obj.rx||0)};
-  for(const input of box.querySelectorAll('[data-key]')){
+  for(const input of bar.querySelectorAll('input[data-key],select[data-key]')){
    const key=input.dataset.key;if(input===document.activeElement||values[key]===undefined)continue;
    if(input.type==='checkbox')input.checked=!!values[key];else input.value=values[key];
   }
-  const h_=box.querySelector('[data-key=h]');if(h_)h_.disabled=obj.pe.kind==='text';
-  const note=box.querySelector('[data-key=imageNote]');
+  const out=bar.querySelector('[data-key=opacityText]');if(out)out.textContent=`${values.opacity}%`;
+  const note=bar.querySelector('[data-key=imageNote]'),natural=E.imageInfo(obj);
   if(note&&natural){
    const up=C.upscale(obj);
-   note.textContent=`原图 ${natural.w} × ${natural.h} px · 当前 ${Math.round(up*100)}%`+(up>1.5?'。放大过多可能模糊，二维码可能扫不出。':'');
+   note.textContent=up>1.5?`已放大到 ${Math.round(up*100)}%，可能模糊，二维码可能扫不出`:`原图 ${natural.w} × ${natural.h} px`;
    note.classList.toggle('warn',up>1.5);
   }
-  for(const input of box.querySelectorAll('input,select,textarea'))input.disabled=!!obj.pe.locked||busy()||(input.dataset.key==='h'&&obj.pe.kind==='text');
+  for(const input of bar.querySelectorAll('input,select'))input.disabled=!!obj.pe.locked||busy();
  }
  function apply(input,record){
-  const obj=E.selected();const key=input.dataset.key;if(!obj||!key)return;
-  const id=obj.pe.id,v=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;
-  if(input.type==='number'&&!Number.isFinite(v))return;
-  const r=obj.getBoundingRect(),keepRatio=obj.pe.kind==='image'||obj.pe.kind==='split';
+  const obj=E.selected();const key=input.dataset.key;if(!obj||!key||obj.pe.id!==propsFor||busy())return;
+  const id=obj.pe.id,v=input.type==='checkbox'?input.checked:(input.type==='number'||input.type==='range')?Number(input.value):input.value;
+  if((input.type==='number'||input.type==='range')&&!Number.isFinite(v))return;
+  const bar=$('style-bar'),get=k=>bar.querySelector(`[data-key=${k}]`);
   const props={};
   switch(key){
-   case 'x':props.left=obj.left+v-r.left;break;
-   case 'y':props.top=obj.top+v-r.top;break;
-   case 'w':if(v<1)return;if(obj.pe.kind==='text')props.width=v/obj.scaleX;else{const f=v/obj.getScaledWidth();props.scaleX=obj.scaleX*f;if(keepRatio)props.scaleY=obj.scaleY*f;}break;
-   case 'h':if(v<1)return;{const f=v/obj.getScaledHeight();props.scaleY=obj.scaleY*f;if(keepRatio)props.scaleX=obj.scaleX*f;}break;
-   case 'angle':props.angle=v;break;
-   case 'opacity':props.opacity=Math.max(0,Math.min(100,v))/100;break;
+   case 'opacity':props.opacity=Math.max(0,Math.min(100,v))/100;{const out=get('opacityText');if(out)out.textContent=`${Math.round(v)}%`;}break;
    case 'bold':props.fontWeight=v?'bold':'normal';break;
    case 'italic':props.fontStyle=v?'italic':'normal';break;
-   case 'strokeOn':props.strokeWidth=v?Math.max(2,Math.round((obj.fontSize||40)/20)):0;props.stroke=v?($('props').querySelector('[data-key=stroke]').value):null;break;
-   case 'stroke':props.stroke=v;if(!obj.strokeWidth)props.strokeWidth=2;break;
-   case 'strokeWidth':props.strokeWidth=Math.max(0,v);if(v>0&&!obj.stroke)props.stroke=$('props').querySelector('[data-key=stroke]').value;break;
+   case 'strokeOn':props.strokeWidth=v?Math.max(2,Math.round((obj.fontSize||40)/20)):0;props.stroke=v?get('stroke').value:null;break;
+   case 'stroke':props.stroke=v;if(!obj.strokeWidth)props.strokeWidth=2;get('strokeOn').checked=true;break;
+   case 'strokeWidth':props.strokeWidth=Math.max(0,v);if(v>0&&!obj.stroke)props.stroke=get('stroke').value;get('strokeOn').checked=v>0;break;
    case 'shadowOn':case 'shadowColor':case 'shadowBlur':case 'shadowOffset':{
-    const box=$('props'),get=k=>box.querySelector(`[data-key=${k}]`);
-    const on=key==='shadowOn'?v:get('shadowOn').checked||key!=='shadowOn';
+    const on=key==='shadowOn'?v:true;
     if(key!=='shadowOn')get('shadowOn').checked=true;
     const offset=Number(get('shadowOffset').value)||0;
     props.shadow=on?new fabric.Shadow({color:get('shadowColor').value,blur:Number(get('shadowBlur').value)||0,offsetX:Math.round(offset/2),offsetY:offset}):null;break;}
@@ -240,12 +244,19 @@ const EditorPanel=(()=>{
   }
   E.update(id,props,{record});
  }
+ function placePop(details){
+  const body=details.querySelector('.ctx-pop-body'),r=details.querySelector('summary').getBoundingClientRect();
+  body.style.top=`${Math.round(r.bottom+4)}px`;
+  body.style.left=`${Math.round(Math.max(8,Math.min(r.left,innerWidth-body.offsetWidth-8)))}px`;
+ }
+ function closePops(except){for(const d of $('style-bar').querySelectorAll('details[open]'))if(d!==except)d.open=false;}
 
  /* ---------- toolbar ---------- */
  function refresh(){
   const open=E.isOpen(),b=busy();
   $('editor-toolbar').hidden=!open;
-  if(!open){$('props').hidden=true;propsFor=null;return;}
+  $('style-bar').hidden=!open;
+  if(!open){propsFor=null;$('style-bar').replaceChildren();return;}
   renderList();
   $('undo').disabled=b||!E.canUndo();$('redo').disabled=b||!E.canRedo();
   const obj=E.selected();
@@ -255,7 +266,8 @@ const EditorPanel=(()=>{
  }
  function onSelection(obj){
   if(!E.isOpen())return;
-  if((obj?.pe.id||null)!==propsFor)buildProps(obj);else syncProps(obj);
+  const target=obj&&STYLED.includes(obj.pe.kind)?obj.pe.id:null;
+  if(target!==propsFor||!$('style-bar').childElementCount)buildBar(obj);else syncBar(obj);
   $('selected-layer').textContent=obj?`已选中：${obj.pe.name||KIND_LABEL[obj.pe.kind]}`:'点击画面里的元素选中';
   $('layer-position').textContent=obj?`${KIND_LABEL[obj.pe.kind]} · X ${Math.round(obj.getBoundingRect().left)} / Y ${Math.round(obj.getBoundingRect().top)}`:'';
   $('reset-layer').disabled=busy()||!obj||obj.pe.kind!=='split';
@@ -263,6 +275,16 @@ const EditorPanel=(()=>{
  }
  function init(options){
   opts=options;checkFonts();
+  const bar=$('style-bar');
+  bar.oninput=e=>apply(e.target,false);
+  bar.onchange=e=>apply(e.target,true);
+  bar.onclick=e=>{const sw=e.target.closest('.swatch');if(sw){const input=sw.closest('.ctx-color').querySelector('input[type=color]');input.value=sw.dataset.color;apply(input,true);}};
+  // One drop-down open at a time; a click anywhere outside closes it.
+  // The bar scrolls sideways instead of wrapping, so drop-downs are placed against the window, not the bar.
+  bar.addEventListener('toggle',e=>{if(e.target.open){closePops(e.target);placePop(e.target);}},true);
+  bar.addEventListener('scroll',()=>closePops());addEventListener('resize',()=>closePops());
+  document.addEventListener('pointerdown',e=>{if(!e.target.closest('.ctx-pop'))closePops();},true);
+  bar.addEventListener('keydown',e=>{if(e.key==='Escape'){const d=e.target.closest('details');if(d){d.open=false;d.querySelector('summary').focus();}}});
   const guard=fn=>(...a)=>{if(busy()||!E.isOpen())return;Promise.resolve(fn(...a)).catch(e=>opts.notify?.(e.message,true));};
   $('add-image-input').onchange=guard(async()=>{const f=$('add-image-input').files[0];$('add-image-input').value='';if(f)await E.addImage(f);});
   $('add-text').onclick=guard(()=>E.addText());

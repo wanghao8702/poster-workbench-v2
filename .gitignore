@@ -13,3 +13,5 @@ cloudflare/deployment.json
 .local-qwen-key
 .superpowers/
 !.env.example
+
+.vercel

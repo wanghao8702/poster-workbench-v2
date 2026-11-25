@@ -5,7 +5,7 @@ const PosterEditor=(()=>{
  const C=EditorCore;
  const SNAP_PX=6,ADDED_KINDS=['image','text','shape'];
  let canvas=null,host=null,opts={},scene={width:1,height:1},zoom=1;
- let assetId=null,baseUrl='/',sample=false,openFlag=false,outputRatio='auto';
+ let assetId=null,baseUrl='',sample=false,openFlag=false,outputRatio='auto';
  let history=new C.History(50),guides=[],clipboard=null,memSeq=0,applying=false;
  const images=new Map();      // url -> {el, bounds, coverage, w, h}
  const memory=new Map();      // 'mem:N' -> data URL, for edits that are never saved (the sample)
@@ -24,7 +24,7 @@ const PosterEditor=(()=>{
  }
  async function loadImage(url){
   if(images.has(url))return images.get(url);
-  const el=new Image();el.src=url;await el.decode();
+  const el=new Image();el.crossOrigin='anonymous';el.src=url;await el.decode();
   const info={el,w:el.naturalWidth,h:el.naturalHeight,...analyze(el)};
   images.set(url,info);return info;
  }
@@ -104,7 +104,7 @@ const PosterEditor=(()=>{
  /* ---------- opening ---------- */
  // layers: [{source, label}] with the topmost layer first, the way the model returns them.
  async function open(params){
-  assetId=params.assetId||null;baseUrl=params.baseUrl||'/';sample=!!params.sample;memory.clear();
+  assetId=params.assetId||null;baseUrl=params.baseUrl||'';sample=!!params.sample;memory.clear();
   const infos=await Promise.all(params.layers.map(l=>loadImage(urlOf(l.source))));
   scene={width:infos[0].w,height:infos[0].h};
   let doc=null,missing=0;

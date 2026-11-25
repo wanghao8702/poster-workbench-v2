@@ -10,7 +10,7 @@
 <p id="demo-banner" class="demo-banner" role="note" hidden></p>
 <header class="topbar">
   <a href="/" class="brand"><span class="brand-mark" aria-hidden="true">p.</span>海报工作台 <span class="brand-light">V2</span></a>
-  <ol class="flow" aria-label="创作流程"><li id="flow-1" class="on">01 生图</li><li id="flow-2">02 拆解</li><li id="flow-3">03 编辑导出</li></ol>
+  <nav class="flow" aria-label="创作流程"><button type="button" id="flow-1" aria-current="step"><b>01</b>生图</button><span class="flow-arrow" aria-hidden="true">→</span><button type="button" id="flow-2"><b>02</b>拆解</button><span class="flow-arrow" aria-hidden="true">→</span><button type="button" id="flow-3" aria-disabled="true" title="先生成、上传或载入一张图"><b>03</b>编辑导出</button></nav>
   <div class="top-actions">
     <button id="toggle-controls" class="quiet" aria-expanded="true" aria-controls="controls">收起左栏</button>
     <button id="use-example" class="quiet">载入示例</button>
@@ -53,8 +53,7 @@
 
 <main class="app" id="app">
   <aside class="controls" id="controls">
-    <div class="tabbar" role="tablist" aria-label="创作模式"><button id="tab-generate" role="tab" aria-selected="true" aria-controls="generation-controls">生成</button><button id="tab-split" role="tab" aria-selected="false" aria-controls="split-controls">拆解</button></div>
-    <div id="generation-controls" class="control-body" role="tabpanel" aria-labelledby="tab-generate">
+    <div id="generation-controls" class="control-body" role="region" aria-label="生图">
       <span class="field-label category-label">创作品类</span>
       <div class="purpose-row" role="radiogroup" aria-label="创作品类">
         <button type="button" class="category-button" role="radio" aria-checked="false" data-purpose="cover"><strong>封面图</strong><span>文章封面</span></button>
@@ -83,7 +82,7 @@
       <button id="generate" class="primary action">生成图片 <span>↗</span></button>
       </div>
     </div>
-    <div id="split-controls" class="control-body" role="tabpanel" aria-labelledby="tab-split" hidden>
+    <div id="split-controls" class="control-body" role="region" aria-label="拆解" hidden>
       <label class="upload" id="drop-zone" for="upload"><span class="upload-plus">＋</span><span class="upload-text"><strong>上传一张设计图</strong><small>点击或拖放 · PNG / JPEG / WebP · 最大 20 MB</small></span><input id="upload" type="file" accept="image/png,image/jpeg,image/webp"></label>
       <label class="field-label" for="split-prompt">图层规划</label>
       <textarea id="split-prompt" maxlength="16000"></textarea>
@@ -96,7 +95,7 @@
 
   <section class="stage-panel" aria-label="画布">
     <div class="stage-bar">
-      <div class="stage-title"><span class="step" id="canvas-step">PREVIEW</span><span id="image-meta">等待你的第一张作品</span></div>
+      <div class="stage-title"><span class="step" id="canvas-step">PREVIEW</span><span id="image-meta">等待你的第一张作品</span><span id="sample-note" class="sample-note" title="示例上的改动不会保存，用「导出当前画面」可以保留结果" hidden>改动不会保存</span></div>
       <div class="stage-actions">
         <span id="editor-controls" class="edit-group" hidden>
           <button id="undo" class="quiet" title="撤销（⌘Z / Ctrl+Z）">撤销</button>
@@ -115,11 +114,9 @@
       <button id="add-text" type="button" class="tool-button" title="新建文字，双击可直接修改">＋文字</button>
       <select id="add-shape" class="tool-button tool-select" aria-label="添加形状"><option value="">＋形状</option><option value="rect">矩形</option><option value="roundrect">圆角矩形</option><option value="line">线条</option></select>
       <i class="divider" aria-hidden="true"></i>
-      <span class="tool-hint">拖动对齐 · 按住 Alt 关闭吸附 · Shift 旋转 15° · 双击文字编辑</span>
+      <div id="style-bar" class="style-bar" role="toolbar" aria-label="选中对象的样式" hidden></div>
       <button id="restore-original" type="button" class="quiet" hidden title="丢弃编辑，回到模型的原始图层">恢复原始图层</button>
-      <span id="sample-note" class="sample-note" hidden>示例不会保存，导出 PNG 保留结果</span>
     </div>
-    <div id="style-bar" class="style-bar" role="toolbar" aria-label="选中对象的样式" hidden></div>
     <div class="canvas-stage" id="canvas-stage">
       <div id="empty-state" class="empty-state">
         <div class="empty-art" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -131,7 +128,7 @@
       <div id="editor-host" class="editor-host" hidden><canvas id="editor-canvas"></canvas></div>
       <div id="next-actions" class="next-actions" hidden><button id="direct-edit" class="secondary" title="不拆层，直接在这张图上加 logo、二维码和文字">直接编辑 ✎</button><button id="next-step" class="primary">继续拆解图层 →</button></div>
       <div id="busy-overlay" class="busy-overlay" hidden><div class="spinner"></div><h3 id="busy-title">正在生成你的画面</h3><p id="busy-detail">通常需要 30–90 秒，请保持页面打开。</p><span id="elapsed">0 秒</span></div>
-      <div id="status" role="status" aria-live="polite" hidden></div>
+      <div id="status" role="status" aria-live="polite" title="点击关闭" hidden></div>
     </div>
     <div class="stage-foot"><strong id="selected-layer">生成或上传一张图开始</strong><span id="layer-position"></span><span id="canvas-caption" class="foot-hint"></span></div>
   </section>

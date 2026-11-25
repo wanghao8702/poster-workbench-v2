@@ -178,7 +178,7 @@ const EditorPanel=(()=>{
   if(previous&&bar.contains(document.activeElement)&&E.objects().some(o=>o.pe.id===previous))E.commitNow();
   bar.replaceChildren();
   if(!target){
-   bar.append(h('span',{class:'ctx-empty',text:'选中文字、形状或你添加的图片，可在这里改样式；位置、大小、角度直接用鼠标拖。'}));
+   bar.append(h('span',{class:'ctx-empty',text:'选中文字、形状或添加的图片后，这里显示样式'}));
    return;
   }
   const k=target.pe.kind;

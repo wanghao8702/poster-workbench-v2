@@ -269,12 +269,30 @@ $('output-ratio').onchange=()=>{if(PosterEditor.isOpen())PosterEditor.setOutputR
 function setMode(next) {
  mode = next;
  for (const kind of ['generate','split']) {
-  $(`tab-${kind}`).setAttribute('aria-selected', String(kind === next));
   $(kind === 'generate' ? 'generation-controls' : 'split-controls').hidden = kind !== next;
  }
  $('model-name').textContent = next === 'split' ? 'ming-image-0.1-design-layer' : genSettings().model;
+ updateFlow();
 }
-function setFlow(step) {for (const n of [1,2,3]) $(`flow-${n}`).classList.toggle('on', n === step);}
+/* The top steps are the only navigation. The lit step follows what the user is doing:
+   the left column's panel, or the editor when the column is folded away for it. */
+function canEdit(){return PosterEditor.isOpen()||(!!currentAsset&&!$('preview-image').hidden);}
+function updateFlow(){
+ const step=PosterEditor.isOpen()&&$('app').classList.contains('no-controls')?3:mode==='generate'?1:2;
+ for(const n of [1,2,3]){const b=$(`flow-${n}`);if(n===step)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current');}
+ const ok=canEdit();
+ $('flow-3').setAttribute('aria-disabled',String(!ok));
+ $('flow-3').title=ok?'':'先生成、上传或载入一张图';
+}
+function goStep(n){
+ if(n===3){
+  if(PosterEditor.isOpen()){showControls(false);autoCollapsed=true;return;}
+  if(canEdit()){$('direct-edit').click();return;}
+  notify('先生成、上传或载入一张图，才能进入编辑。');return;
+ }
+ autoCollapsed=false;showControls(true);setMode(n===1?'generate':'split');
+}
+for(const n of [1,2,3])$(`flow-${n}`).onclick=()=>goStep(n);
 function notify(message, error = false) {
  clearTimeout(statusTimer);
  $('status').textContent = message;
@@ -287,8 +305,14 @@ function showControls(show) {
  $('app').classList.toggle('no-controls', !show);
  $('toggle-controls').textContent = show ? '收起左栏' : '展开左栏';
  $('toggle-controls').setAttribute('aria-expanded', String(show));
+ updateFlow();
 }
-$('toggle-controls').onclick = () => showControls($('app').classList.contains('no-controls'));
+$('toggle-controls').onclick = () => {autoCollapsed=false;showControls($('app').classList.contains('no-controls'));};
+/* The editor wants the whole width: fold the left column away while editing, and bring it back afterwards
+   only if we were the ones who folded it. */
+let autoCollapsed=false;
+function collapseForEditor(){if(!$('app').classList.contains('no-controls')){showControls(false);autoCollapsed=true;}}
+function restoreAfterEditor(){if(autoCollapsed){autoCollapsed=false;showControls(true);}}
 function showKeyPanel(show) {
  $('key-panel').hidden = !show;
  $('settings').setAttribute('aria-expanded', String(show));
@@ -323,12 +347,6 @@ for(const button of document.querySelectorAll('[data-reveal]'))button.onclick=()
  button.textContent=showing?'隐藏':'显示';
  button.setAttribute('aria-label',button.getAttribute('aria-label').replace(showing?'显示':'隐藏',showing?'隐藏':'显示'));
 };
-for (const kind of ['generate','split']) $(`tab-${kind}`).onclick = () => setMode(kind);
-for (const button of document.querySelectorAll('.tabbar button')) button.onkeydown = event => {
- if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-  event.preventDefault();event.stopPropagation();setMode(mode==='generate'?'split':'generate');$(`tab-${mode}`).focus();
- }
-};
 function countPrompt() {$('prompt-count').textContent = `${promptEditor().value.length.toLocaleString()} 字`;}
 for(const id of Object.values(PROMPT_IDS))$(id).oninput=countPrompt;
 
@@ -348,8 +366,9 @@ async function readImage(url) {
  const img = new Image();img.src = url;await img.decode();return img;
 }
 function hideEditor(){
- PosterEditor.close();setSaveState('');
+ PosterEditor.close();setSaveState('');restoreAfterEditor();
  for(const id of ['editor-controls','layers-section','editor-host','sample-note','restore-original'])$(id).hidden=true;
+ updateFlow();
 }
 /* Show one image before any editing: the generated or uploaded picture, ready to split or edit directly. */
 async function loadSource(url, label, asset=null) {
@@ -368,7 +387,7 @@ async function loadSource(url, label, asset=null) {
  $('download-original').hidden = false;
  $('next-actions').hidden = false;$('direct-edit').hidden = !asset;
  $('clear-stage').hidden = false;
- setFlow(2);
+ updateFlow();
  await $('preview-image').decode().catch(() => {});
  fitStage();
  return img;
@@ -382,16 +401,17 @@ async function openLayers(o){
  $('download-zip').hidden=!o.zip;if(o.zip)$('download-zip').href=o.zip;
  $('download-original').hidden=!currentImage;if(currentImage)$('download-original').href=currentImage;
  $('sample-note').hidden=!o.sample;$('restore-original').hidden=!currentAsset;
+ collapseForEditor();
  const doc=await PosterEditor.open({assetId:currentAsset?.id||null,baseUrl:o.baseUrl,layers:o.layers,doc:o.doc||null,sample:!!o.sample});
  $('output-ratio').value=doc.outputRatio;
  EditorPanel.setPalette(PosterEditor.backdrop());
  const size=PosterEditor.scene();
  $('image-meta').textContent=`${o.sample?'示例 · ':''}${o.title||'图层编辑'} · ${size.width} × ${size.height}`;
  $('canvas-step').textContent='LAYERS';
- $('canvas-caption').textContent='拖动移动 · 拖角缩放 · Ctrl+Z 撤销';
+ $('canvas-caption').textContent='拖动自动对齐 · Alt 关闭吸附 · Shift 旋转 15° · 双击文字编辑 · Ctrl+Z 撤销';
  $('layer-note').textContent=o.note||'拆出的文字是像素图片，改不了字：可以隐藏它，再用「＋文字」写一段新的。';
  setSaveState(currentAsset&&o.doc?'saved':'');
- setFlow(3);EditorPanel.refresh();
+ updateFlow();EditorPanel.refresh();
 }
 /* Start over on the stage. Prompts, dialogs, the asset library and saved edits are left alone. */
 async function clearStage(){
@@ -404,7 +424,7 @@ async function clearStage(){
  $('empty-state').hidden=false;
  $('image-meta').textContent='等待你的第一张作品';$('canvas-step').textContent='PREVIEW';
  $('selected-layer').textContent='生成或上传一张图开始';$('layer-position').textContent='';$('canvas-caption').textContent='';
- setFlow(1);setMode('generate');
+ setMode('generate');
  notify('画布已清空。提示词和填写的信息都保留，之前的结果和编辑稿仍在「我的素材库」。');
 }
 $('clear-stage').onclick=clearStage;
@@ -645,8 +665,8 @@ async function openAsset(item){
   }
   const picture=item.kind==='split'?item.source_url:(item.source_url||item.images[0].url);
   if(item.kind==='split'||doc){currentImage=picture;await openLayers({...asset,doc});}
-  else await loadSource(picture,item.kind==='upload'?'上传的图片':'历史生成图片',asset);
-  setMode('split');closeLibrary();showControls(true);
+  else{await loadSource(picture,item.kind==='upload'?'上传的图片':'历史生成图片',asset);showControls(true);}
+  setMode('split');closeLibrary();
   notify(item.kind==='split'&&!item.source_url?'已载入历史图层。旧记录没有保存原图，不能再次拆解。':doc?'已恢复上次的编辑，可以接着改。':'历史素材已载入，可以继续编辑或拆层。');
  }catch(e){notify('素材载入失败：'+e.message,true);}
  finally{setBusy(false,'load');}

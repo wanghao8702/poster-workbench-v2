@@ -113,8 +113,8 @@ const plain=v=>JSON.parse(JSON.stringify(v));
  console.log('讲师呈现方式示意图卡片检查通过');
 
  // test_clear_stage_resets_canvas_but_keeps_work
- const stage=sandbox({currentImage:'/output/a/image-01.png',currentAsset:{id:'a'},flow:0,hidden:0,flushed:0,
-  setFlow(n){stage.flow=n;},setMode(m){stage.mode=m;},confirm:()=>stage.answer,flushSave:async()=>{stage.flushed++;},hideEditor(){stage.hidden++;},
+ const stage=sandbox({currentImage:'/output/a/image-01.png',currentAsset:{id:'a'},hidden:0,flushed:0,
+  setMode(m){stage.mode=m;},confirm:()=>stage.answer,flushSave:async()=>{stage.flushed++;},hideEditor(){stage.hidden++;},
   PosterEditor:{isSample:()=>stage.isSample,isOpen:()=>true,canUndo:()=>true}});
  for(const id of ['preview-image','download-original','next-actions','clear-stage'])stage.els[id]={...element(),hidden:false,removeAttribute(){this.src='';}};
  stage.els['empty-state']={...element(),hidden:true};
@@ -127,7 +127,7 @@ const plain=v=>JSON.parse(JSON.stringify(v));
  assert.equal(stage.currentImage,null);assert.equal(stage.currentAsset,null);
  assert.equal(stage.els['empty-state'].hidden,false);
  for(const id of ['preview-image','download-original','next-actions','clear-stage'])assert.equal(stage.els[id].hidden,true,id);
- assert.equal(stage.flow,1);assert.equal(stage.mode,'generate');
+ assert.equal(stage.mode,'generate');
  assert.equal(stage.els['generate-prompt'].value,'我的提示词','清空画布不动提示词');
  console.log('清空画布：示例确认、先保存、重置画布、保留提示词检查通过');
 

@@ -84,10 +84,18 @@ const TrainingPoster=(()=>{
 
   const heroLines=[
    '• 主视觉：围绕培训主题设计一个清晰、有记忆点的主视觉，具体形式由你根据主题与受众判断。',
-   `• 通过视觉隐喻而非直白插图来传达“${topic}”——例如上升的形态、打开的路径、升起的地平线或连接的节点。`,
-   `• 人物形象、着装与环境需真实贴合${audPhrase}。`,
-   '• 人物状态自然投入：表情真实、姿态可信，避免僵硬的图库摆拍感。'
+   `• 通过视觉隐喻而非直白插图来传达“${topic}”——例如上升的形态、打开的路径、升起的地平线或连接的节点。`
   ];
+  // Only "主讲人出镜" (or no lecturer at all) may put people in the hero. Otherwise the model
+  // invents a large extra figure next to the portrait card.
+  if(!count||mode==='feature'){
+   heroLines.push(`• 人物形象、着装与环境需真实贴合${audPhrase}。`);
+   heroLines.push('• 人物状态自然投入：表情真实、姿态可信，避免僵硬的图库摆拍感。');
+  }else if(mode==='portrait'){
+   const who=count===1?(speakers[0].name||'讲师'):`${count} 位讲师`;
+   heroLines.push('• 主视觉不出现任何人物：不画人像、半身像、剪影或人群，只用图形、空间与物件意象表达主题。');
+   heroLines.push(`• 全图唯一出现的人物是讲师肖像卡片中的${count===1?who:' '+who}，不在卡片之外再画讲师或其他人。`);
+  }else heroLines.push('• 主视觉不出现任何人物：不画人像、半身像、剪影或人群，只用图形、空间与物件意象表达主题。');
   if(count&&mode==='feature'){
    heroLines.push(`• 主讲人物以讲师名单为准：画面中只出现 ${count} 位可辨识的讲师，其余听众仅以虚化背影或剪影呈现。`);
    heroLines.push('• 讲师姿态：'+speakers.map((s,i)=>`${s.name||label(s,i)} 为${POSES[s.pose].zh}`).join('；')+'。');
@@ -113,7 +121,7 @@ const TrainingPoster=(()=>{
   if(count){
    if(count===1){
     const s=speakers[0],id=[s.name,s.title].filter(Boolean).join(' — ');
-    speakerLines.push(`• 出镜讲师：${id||'特邀讲师'}。`);
+    speakerLines.push(`• ${mode==='feature'?'出镜讲师':'主讲讲师'}：${id||'特邀讲师'}。`);
    }else{
     speakerLines.push(`• 讲师阵容共 ${count} 位，按以下顺序呈现：`+speakers.map((s,i)=>`${num(i)} ${s.name||'特邀讲师'}${s.title?`（${s.title}）`:''}`).join('；')+'。');
     speakers.forEach((s,i)=>{
@@ -170,6 +178,7 @@ const TrainingPoster=(()=>{
   }
 
   let avoid='错字或乱码文字、多余文字块、水印、额外标志、杂乱版面、扭曲的面部或手部、重复肢体、塑料感皮肤、浑浊或过饱和的色彩、图像上低对比度的文字';
+  if(count&&mode==='portrait')avoid+='、肖像卡片之外的任何人物';
   if(refSpeakers.length)avoid+='、与参考图不符的面部';
   const techLines=[
    `• 输出比例 ${ratio}；高细节；专业广告级完成度。`,

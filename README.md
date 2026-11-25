@@ -34,10 +34,10 @@
 ### 启动
 
 - **Windows**：双击 `启动.bat`。它会依次尝试 `py -3`、`python`、`python3`，启动后自动打开浏览器；没找到 Python 时会提示去安装。关闭命令行窗口即停止服务。
-- **命令行**：`python server.py --open`（指定端口：`python server.py --port 8766`）
+- **命令行**：`python server.py --open`（指定端口：`python server.py --port 8791`）
 - **macOS**：双击 `启动.command`
 
-打开 [http://127.0.0.1:8765](http://127.0.0.1:8765)，在右上角「API 设置」填写 Key。服务只监听本机 `127.0.0.1`。
+打开 [http://127.0.0.1:8790](http://127.0.0.1:8790)，在右上角「API 设置」填写 Key。服务只监听本机 `127.0.0.1`。
 
 ### 使用流程
 
@@ -83,7 +83,7 @@
   | `QWEN_IMAGE_MODEL` | 千问生图模型 | `qwen-image-3.0-pro` |
   | `QWEN_TEXT_MODEL` | 千问文本模型 | `qwen-plus` |
   | `QWEN_BASE_URL` | 百炼地址 | `https://dashscope.aliyuncs.com/api/v1` |
-  | `PORT` | 本地服务端口 | `8765` |
+  | `PORT` | 本地服务端口 | `8790` |
 
   改完刷新浏览器即可生效（只有 `PORT` 需要重启 `启动.bat`）。`.env` 里填了的设置会覆盖浏览器记住的值；在页面「API 设置」里临时改 Key 只对当前页面有效，不会写回 `.env`。
 - 旧版的 `.local-key`（MaaS）和 `.local-qwen-key`（千问）仍然可用，`.env` 里对应的 Key 为空时才读它们。

@@ -393,7 +393,7 @@ def local_config():
             'qwen_base_url': base_url if parsed.scheme == 'https' and parsed.netloc and len(base_url) <= 500 else ''}
 
 
-def env_port(default=8765):
+def env_port(default=8790):
     value = load_env(ENV_FILE).get('PORT', '')
     return int(value) if value.isdigit() and 1 <= int(value) <= 65535 else default
 
@@ -557,7 +557,7 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='海报工作台 V2 本地服务')
-    parser.add_argument('--port', type=int, default=env_port(), help='默认读取 .env 的 PORT，未设置时为 8765')
+    parser.add_argument('--port', type=int, default=env_port(), help='默认读取 .env 的 PORT，未设置时为 8790')
     parser.add_argument('--open', action='store_true', help='启动后打开浏览器')
     args = parser.parse_args()
     OUTPUT.mkdir(exist_ok=True)

@@ -87,10 +87,10 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual((body['gen_provider'], body['qwen_image_model'], body['qwen_base_url'], body['source']), ('', '', '', ''))
 
     def test_env_port(self):
-        self.patch_files(env='PORT=8790\n')
-        self.assertEqual(server.env_port(), 8790)
+        self.patch_files(env='PORT=8801\n')
+        self.assertEqual(server.env_port(), 8801)
         (self.output / '.env').write_text('PORT=abc\n', encoding='utf-8')
-        self.assertEqual(server.env_port(), 8765)
+        self.assertEqual(server.env_port(), 8790)
 
     def test_split_multipart_has_original_image_and_exports_all_layers(self):
         with patch('server.urllib.request.urlopen', return_value=self.reply(2)) as api:

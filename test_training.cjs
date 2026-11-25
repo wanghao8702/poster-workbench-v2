@@ -33,13 +33,18 @@ assert.ok(pt.includes('肖像卡片之外的任何人物'));
 // test_portrait_mode_multi_speaker_limits_people
 const pt4=T.compile({...base,lecturerMode:'portrait',speakers:[1,2,3].map(i=>({...T.defaultSpeaker(i),name:'讲师'+i}))},qwen).prompt;
 assert.ok(pt4.includes('全图唯一出现的人物是讲师肖像卡片中的 3 位讲师'));
+// test_portrait_mode_no_body_wording — 不能再出现暗示全身人物的措辞
+assert.ok(!/人体结构|手部|肢体/.test(pt),pt);
+assert.ok(pt.includes('肖像卡片中的人物采用摄影级真实感'));
+assert.ok(!pt.includes('• 人物采用摄影级真实感'));
 // test_text_mode_has_no_people
 const tx=T.compile({...base,lecturerMode:'text'},qwen).prompt;
 assert.ok(!HERO_PEOPLE.test(tx),tx);
 assert.ok(tx.includes('主视觉不出现任何人物'));
-// test_feature_mode_keeps_people
+assert.ok(!/人体结构|手部|肢体|皮肤质感|摄影级真实感|塑料感皮肤/.test(tx),tx);// test_feature_mode_keeps_people
 const ft=T.compile({...base,lecturerMode:'feature'},qwen).prompt;
 assert.ok(ft.includes('人物形象、着装与环境需真实贴合管理层')&&ft.includes('出镜讲师'));
+assert.ok(ft.includes('人体结构准确')&&ft.includes('扭曲的面部或手部'));
 // test_no_speaker_keeps_generic_people
 assert.ok(T.compile({...base,speakers:[]},qwen).prompt.includes('人物形象、着装与环境'));
 // test_date_format

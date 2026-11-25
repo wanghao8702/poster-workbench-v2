@@ -164,9 +164,14 @@ const TrainingPoster=(()=>{
    }
   }
 
+  // Body wording (hands, limbs, anatomy) invites full-body figures, so it only applies when
+  // people may appear in the scene: 主讲人出镜, or no lecturer filled in.
+  const bodies=!count||mode==='feature',cardOnly=count&&mode==='portrait';
   const lightLines=[
    '• 光影：自然、有层次的光线，与所选风格保持一致。',
-   '• 细节等级：边缘清晰、皮肤质感自然、人体结构准确、透视统一，无渲染瑕疵。'
+   bodies?'• 细节等级：边缘清晰、皮肤质感自然、人体结构准确、透视统一，无渲染瑕疵。'
+    :cardOnly?'• 细节等级：边缘清晰、肖像皮肤质感自然、透视统一，无渲染瑕疵。'
+    :'• 细节等级：边缘清晰、透视统一，无渲染瑕疵。'
   ];
 
   const refLines=[];
@@ -177,12 +182,16 @@ const TrainingPoster=(()=>{
    refLines.push('• 不复制参考图中的背景、文字或水印，不添加参考图中不存在的元素。');
   }
 
-  let avoid='错字或乱码文字、多余文字块、水印、额外标志、杂乱版面、扭曲的面部或手部、重复肢体、塑料感皮肤、浑浊或过饱和的色彩、图像上低对比度的文字';
-  if(count&&mode==='portrait')avoid+='、肖像卡片之外的任何人物';
+  let avoid='错字或乱码文字、多余文字块、水印、额外标志、杂乱版面、'
+   +(bodies?'扭曲的面部或手部、重复肢体、塑料感皮肤、':cardOnly?'扭曲的面部、塑料感皮肤、':'')
+   +'浑浊或过饱和的色彩、图像上低对比度的文字';
+  if(cardOnly)avoid+='、肖像卡片之外的任何人物、全身或半身人物照';
   if(refSpeakers.length)avoid+='、与参考图不符的面部';
   const techLines=[
    `• 输出比例 ${ratio}；高细节；专业广告级完成度。`,
-   '• 人物采用摄影级真实感，图形元素保持矢量级干净边缘。',
+   bodies?'• 人物采用摄影级真实感，图形元素保持矢量级干净边缘。'
+    :cardOnly?'• 肖像卡片中的人物采用摄影级真实感，其余图形元素保持矢量级干净边缘。'
+    :'• 图形元素保持矢量级干净边缘。',
    '• 不要虚构额外的品牌名、口号、徽章、二维码或水印，不要做成网页截图或设计样机。',
    `• 避免：${avoid}。`
   ];

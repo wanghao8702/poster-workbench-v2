@@ -367,3 +367,10 @@ textarea:focus{border-color:var(--green);outline:0}
 /* ---------- Hosted demo notice ---------- */
 .demo-banner{margin:0;padding:6px 18px;background:#fbf3d9;color:#6b5414;font-size:12px;text-align:center}
 .demo-banner[hidden]{display:none}
+
+/* ---------- Lecturer presentation picker (picture cards, same look as the cover style picker) ---------- */
+.mode-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mode-thumb{aspect-ratio:4/3}
+.mode-thumb img{object-fit:contain}
+.mode-note{font-size:11px;line-height:1.5;color:var(--muted);padding:0 2px}
+@media (max-width:520px){.mode-grid{grid-template-columns:1fr 1fr}}

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
+  <!-- 主讲人出镜：讲师作为主视觉人物出现在画面里 -->
+  <rect width="160" height="120" fill="#eae7e0"/>
+  <defs><clipPath id="poster"><rect x="40" y="7" width="80" height="106" rx="2"/></clipPath></defs>
+  <rect x="40" y="7" width="80" height="106" rx="2" fill="#f7f6f2"/>
+  <g clip-path="url(#poster)">
+    <circle cx="98" cy="58" r="10" fill="#8b8f96"/>
+    <path d="M76 113 C76 85 84 72 98 71 C112 72 120 85 120 113 Z" fill="#8b8f96"/>
+  </g>
+  <rect x="47" y="15" width="40" height="6" rx="1" fill="#15171c"/>
+  <rect x="47" y="24" width="30" height="6" rx="1" fill="#15171c"/>
+  <rect x="47" y="34" width="26" height="2.5" rx="1" fill="#74787f"/>
+  <rect x="47" y="50" width="20" height="2" rx="1" fill="#74787f"/>
+  <rect x="47" y="56" width="17" height="2" rx="1" fill="#74787f"/>
+  <rect x="47" y="62" width="19" height="2" rx="1" fill="#74787f"/>
+  <rect x="47" y="76" width="14" height="3.5" rx="1" fill="#15171c"/>
+  <rect x="47" y="82" width="20" height="2" rx="1" fill="#74787f"/>
+  <rect x="47" y="96" width="26" height="2" rx="1" fill="#74787f"/>
+  <rect x="47" y="102" width="20" height="5" rx="2.5" fill="#b39a6c"/>
+</svg>

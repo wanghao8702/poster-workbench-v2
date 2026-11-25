@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
+  <!-- 肖像 + 简介：主视觉只用图形，讲师以小肖像卡片出现 -->
+  <rect width="160" height="120" fill="#eae7e0"/>
+  <rect x="40" y="7" width="80" height="106" rx="2" fill="#f7f6f2"/>
+  <path d="M78 74 Q96 58 113 34" fill="none" stroke="#b39a6c" stroke-width="1.6"/>
+  <path d="M84 80 Q100 66 113 50" fill="none" stroke="#d6cbb5" stroke-width="1.2"/>
+  <circle cx="113" cy="34" r="2.4" fill="#b39a6c"/>
+  <circle cx="96" cy="58" r="2" fill="#b39a6c"/>
+  <rect x="47" y="15" width="40" height="6" rx="1" fill="#15171c"/>
+  <rect x="47" y="24" width="30" height="6" rx="1" fill="#15171c"/>
+  <rect x="47" y="34" width="26" height="2.5" rx="1" fill="#74787f"/>
+  <rect x="47" y="46" width="20" height="2" rx="1" fill="#74787f"/>
+  <rect x="47" y="52" width="17" height="2" rx="1" fill="#74787f"/>
+  <rect x="47" y="58" width="19" height="2" rx="1" fill="#74787f"/>
+  <rect x="47" y="68" width="19" height="23" rx="2.5" fill="#dcd8cf"/>
+  <circle cx="56.5" cy="77" r="4.2" fill="#8b8f96"/>
+  <path d="M49.5 91 C49.5 85 52.5 82.5 56.5 82.5 C60.5 82.5 63.5 85 63.5 91 Z" fill="#8b8f96"/>
+  <rect x="70" y="72" width="14" height="3.5" rx="1" fill="#15171c"/>
+  <rect x="70" y="78" width="19" height="2" rx="1" fill="#74787f"/>
+  <rect x="70" y="83" width="16" height="2" rx="1" fill="#74787f"/>
+  <rect x="47" y="96" width="26" height="2" rx="1" fill="#74787f"/>
+  <rect x="47" y="102" width="20" height="5" rx="2.5" fill="#b39a6c"/>
+</svg>

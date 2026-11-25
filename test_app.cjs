@@ -100,6 +100,17 @@ const plain=v=>JSON.parse(JSON.stringify(v));
  assert.equal(formCtx.TrainingForm.summary(photoOnly),'安全生产月 · 1 位讲师');
  assert.equal(formCtx.TrainingForm.summary({...photoOnly,lecturerMode:'portrait'}),'安全生产月 · 2 位讲师');
  console.log('仅文字模式下只有照片的讲师不计入检查通过');
+ // test_lecturer_mode_cards_have_pictures — 呈现方式改成带示意图的卡片，和封面风格一样
+ const cards=formCtx.TrainingForm.modeCards();
+ for(const key of Object.keys(TrainingPoster.LECTURER_MODES)){
+  assert.ok(cards.includes(`data-mode="${key}"`),key);
+  assert.ok(cards.includes(`src="/lecturer-modes/${key}.svg"`),key);
+  assert.ok(fs.existsSync(`${__dirname}/static/lecturer-modes/${key}.svg`),key);
+  assert.ok(cards.includes(TrainingPoster.LECTURER_MODES[key]),key);
+ }
+ assert.equal((cards.match(/class="style-card mode-card"/g)||[]).length,3);
+ assert.ok(cards.includes('主视觉不放人物'));
+ console.log('讲师呈现方式示意图卡片检查通过');
 
  // test_clear_stage_resets_canvas_but_keeps_work
  const stage=sandbox({currentImage:'/output/a/image-01.png',currentAsset:{id:'a'},flow:0,hidden:0,flushed:0,

@@ -13,6 +13,16 @@ const TrainingForm=(()=>{
  const options=(map,selected)=>Object.entries(map).map(([key,item])=>`<option value="${key}"${key===selected?' selected':''}>${esc(item.zh)}</option>`).join('');
  const chips=(name,list,multi)=>list.map(value=>`<button type="button" class="chip" data-${name}="${esc(value)}" aria-pressed="false">${esc(value)}</button>`).join('');
 
+ // Lecturer presentation picker: picture cards like the cover style picker. The diagrams are
+ // static SVG layouts (no real faces), so they also work in the hosted demo.
+ const MODE_NOTES={feature:'讲师作为主视觉人物出镜',portrait:'主视觉不放人物，讲师用肖像卡片',text:'不出现人物，讲师只用文字介绍'};
+ function modeCards(){
+  return Object.entries(TrainingPoster.LECTURER_MODES).map(([key,label])=>
+   `<button type="button" class="style-card mode-card" data-mode="${key}" aria-pressed="false" title="${esc(MODE_NOTES[key])}">`
+   +`<span class="style-thumb mode-thumb"><img src="/lecturer-modes/${key}.svg" alt="" decoding="async"></span>`
+   +`<span class="style-name">${esc(label)}</span><span class="mode-note">${esc(MODE_NOTES[key])}</span></button>`).join('');
+ }
+
  function skeleton(){
   const T=TrainingPoster;
   root.innerHTML=`
@@ -42,7 +52,7 @@ const TrainingForm=(()=>{
   <div class="tf-field"><label class="field-label" for="tf-cta">行动号召 / 报名信息</label><input id="tf-cta" class="size-select" maxlength="40" placeholder="例：3 月 5 日前完成报名"></div>
   <div class="tf-field"><label class="field-label" for="tf-course">课程内容 <span>每行一条</span></label><textarea id="tf-course" class="tf-course" maxlength="600" placeholder="目标对齐与团队共识&#10;关键对话与反馈技巧&#10;90 天落地行动地图"></textarea></div>
   <h3 class="tf-section">讲师</h3>
-  <div class="tf-field"><span class="field-label">呈现方式</span><div class="tf-chips" role="radiogroup" aria-label="讲师呈现方式">${Object.entries(T.LECTURER_MODES).map(([key,label])=>`<button type="button" class="chip" data-mode="${key}" aria-pressed="false">${esc(label)}</button>`).join('')}</div></div>
+  <div class="tf-field"><span class="field-label" id="tf-mode-label">呈现方式</span><div class="mode-grid" role="group" aria-labelledby="tf-mode-label">${modeCards()}</div></div>
   <p id="ref-limit-hint" class="tf-hint" role="status" hidden></p>
   <div id="tf-speakers" class="tf-speakers"></div>
   <button type="button" id="tf-add-speaker" class="secondary tf-add">＋ 添加讲师</button>`;
@@ -118,7 +128,7 @@ const TrainingForm=(()=>{
       <div class="tf-pair"><input class="size-select" data-key="name" maxlength="20" placeholder="姓名" aria-label="讲师 ${num(i)} 姓名" value="${esc(speaker.name)}">
        <input class="size-select" data-key="title" maxlength="40" placeholder="头衔" aria-label="讲师 ${num(i)} 头衔" value="${esc(speaker.title)}"></div>
       <input class="size-select" data-key="bio" maxlength="80" placeholder="资历（可选）" aria-label="讲师 ${num(i)} 资历" value="${esc(speaker.bio)}">
-      <div class="tf-pair"${showLook?'':' hidden'}><select class="size-select" data-key="pose" aria-label="讲师 ${num(i)} 姿势">${options(TrainingPoster.POSES,speaker.pose)}</select>
+      <div class="tf-pair"${showLook?'':' hidden'}><select class="size-select" data-key="pose"${mode()==='feature'?'':' hidden'} aria-label="讲师 ${num(i)} 姿势">${options(TrainingPoster.POSES,speaker.pose)}</select>
        <select class="size-select" data-key="outfit" aria-label="讲师 ${num(i)} 着装">${options(TrainingPoster.OUTFITS,speaker.outfit)}</select></div>
      </div>
     </div>
@@ -216,5 +226,5 @@ const TrainingForm=(()=>{
   hint.textContent=text;hint.hidden=!text;
  }
  function setRefLimit(settings){refLimit={provider:settings.provider,maxRefImages:settings.maxRefImages};if(root)updateHint();}
- return {mount,read,write,state,restore,persist,photo,photoCount,summary,setRefLimit,setExtractor,mergeExtracted};
+ return {mount,read,write,state,restore,persist,photo,photoCount,summary,setRefLimit,setExtractor,mergeExtracted,modeCards};
 })();

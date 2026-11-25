@@ -139,7 +139,7 @@
 ├── training_extract.py      # 读取 txt / md / docx，调用千问文本模型识别培训信息
 ├── test_server.py / test_qwen.py / test_extract.py / test_edits.py / test_training.cjs / test_editor_core.cjs / test_app.cjs
 ├── vendor/punk-skill/       # 第三方风格规则来源与许可
-├── docs/                    # 开发文档（见 docs/README.md）、初版设计与实施计划
+├── docs/                    # 开发文档（见 docs/README.md）
 ├── 启动.bat                  # Windows 启动入口
 └── 启动.command              # macOS 启动入口
 ```

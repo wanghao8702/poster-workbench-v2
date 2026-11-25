@@ -16,3 +16,7 @@ cloudflare/deployment.json
 !.env.example
 
 .vercel
+
+# 开发过程的设计稿和实施计划只留本地
+docs/specs/
+docs/plans/

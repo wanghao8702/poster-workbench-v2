@@ -78,8 +78,9 @@ h1,h2,h3,p{margin:0}
 .flow button[aria-disabled=true]{opacity:.5;cursor:not-allowed}
 .flow button[aria-disabled=true]:hover{background:transparent;color:var(--muted)}
 .flow-arrow{color:var(--faint);font-size:var(--fs-xs)}
-/* Phones: the steps take a row of their own under the brand and actions. */
-@media(max-width:600px){:root{--top:94px}.topbar{flex-wrap:wrap;align-content:center;row-gap:6px}.flow{order:3;flex-basis:100%}.flow button{flex:1;justify-content:center}}
+/* Phones: the steps take a row of their own under the brand and actions. The fold-column button goes: the page
+   stacks vertically anyway and 01 / 02 bring the column back, and without it brand and actions fit one row down to 360px. */
+@media(max-width:600px){:root{--top:94px}#toggle-controls{display:none}.topbar{flex-wrap:wrap;align-content:center;row-gap:6px}.flow{order:3;flex-basis:100%}.flow button{flex:1;justify-content:center}}
 .top-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
 .quiet{border:0;background:transparent;padding:6px 9px;font-size:var(--fs-xs);display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:4px;white-space:nowrap}
 .quiet:hover:not(:disabled){background:var(--soft)}

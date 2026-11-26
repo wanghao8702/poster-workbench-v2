@@ -49,6 +49,29 @@ const TrainingPoster=(()=>{
   return list.slice(0,-1).join('、')+'与'+list[list.length-1];
  }
 
+ /* What the poster will say, for the card in the generation panel. Uses the same rules as compile():
+    headline falls back to the topic, and a speaker counts only if compile() would draw them. */
+ function brief(values){
+  const v=values||{};
+  const topic=str(v.topic);
+  if(!topic)return {empty:true,title:'',subtitle:'',rows:[]};
+  const mode=Object.hasOwn(LECTURER_MODES,v.lecturerMode)?v.lecturerMode:'portrait';
+  const format=FORMATS[v.format]?v.format:'线下';
+  const when=[fmtDate(v.date),str(v.time)].filter(Boolean).join(' ');
+  const speakers=(Array.isArray(v.speakers)?v.speakers:[]).map(s=>({name:str(s&&s.name),title:str(s&&s.title),bio:str(s&&s.bio),photoName:str(s&&s.photoName)}))
+   .filter(s=>s.name||s.title||s.bio||(mode!=='text'&&s.photoName));
+  const who=speakers.map((s,i)=>`${s.name||`讲师 ${i+1}`}${s.title?`（${s.title}）`:''}`).join('、');
+  const rows=[
+   when?['时间',`${when} · ${format}`]:['形式',format],
+   ['地点',str(v.venue)],
+   ['受众',(Array.isArray(v.audiences)?v.audiences:[]).map(str).filter(Boolean).join('、')],
+   ['讲师',who?`${who}${who.endsWith('）')?'':' '}· ${LECTURER_MODES[mode]}`:''], // a full-width bracket already carries its own space
+   ['课程',(Array.isArray(v.courseList)?v.courseList:[]).map(str).filter(Boolean).join('、')],
+   ['号召',str(v.cta)]
+  ].filter(row=>row[1]);
+  return {empty:false,title:str(v.headline)||topic,subtitle:str(v.sub),rows};
+ }
+
  function compile(values,opts){
   const v=values||{},o=opts||{};
   const topic=str(v.topic);
@@ -207,6 +230,6 @@ const TrainingPoster=(()=>{
   const prompt=`企业培训宣传海报 —— “${topic}”。\n\n`+sections.map(([title,lines])=>`【${title}】\n${lines.join('\n')}`).join('\n\n');
   return {prompt,references:refSpeakers.map(s=>s.index)};
  }
- return {POSES,OUTFITS,AUDIENCES,FORMATS,LECTURER_MODES,defaultSpeaker,example,compile};
+ return {POSES,OUTFITS,AUDIENCES,FORMATS,LECTURER_MODES,defaultSpeaker,example,compile,brief};
 })();
 if(typeof module!=='undefined')module.exports=TrainingPoster;

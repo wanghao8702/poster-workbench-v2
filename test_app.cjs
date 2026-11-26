@@ -13,7 +13,7 @@ function sandbox(extra){
  const $=id=>els[id]||(els[id]=element());
  const ctx={$,els,TrainingPoster,OUTPUT_SIZES:{'1:1':1,'9:16':1,'16:9':1,'5:2':1,'4:3':1,'3:4':1},
   busy:false,sample:true,outputRatio:'auto',currentImage:null,notices:[],
-  notify(m,e){ctx.notices.push([m,!!e]);},setBusy(){},setMode(){},closeLibrary(){},showControls(){},countPrompt(){},
+  notify(m,e){ctx.notices.push([m,!!e]);},setBusy(){},setMode(){},closeLibrary(){},showControls(){},renderPrompt(){},
   loadSource:async(...a)=>{ctx.loaded=a;},openLayers:async o=>{ctx.opened=o;},orderedLayerItems:i=>i,pad2:n=>String(n).padStart(2,'0'),
   fetch:async url=>({ok:true,json:async()=>({version:1,objects:[],from:url})}),
   updateGenUI(){ctx.genUI=(ctx.genUI||0)+1;},
@@ -92,14 +92,9 @@ const plain=v=>JSON.parse(JSON.stringify(v));
  assert.equal(asked.length,2,'没有提示条的品类不弹确认');
  console.log('提示词与生图设置不一致时，生成前确认检查通过');
 
- // test_summary_ignores_photo_only_speaker_in_text_mode
  const formCtx={TrainingPoster,document:{},localStorage:{getItem:()=>null,setItem(){}},URL:{}};
  vm.createContext(formCtx);
  vm.runInContext(fs.readFileSync(__dirname+'/static/training-form.js','utf8')+';this.TrainingForm=TrainingForm;',formCtx);
- const photoOnly={topic:'安全生产月',lecturerMode:'text',speakers:[{name:'',title:'',bio:'',photoName:'a.jpg'},{name:'林悦',title:'',bio:'',photoName:''}]};
- assert.equal(formCtx.TrainingForm.summary(photoOnly),'安全生产月 · 1 位讲师');
- assert.equal(formCtx.TrainingForm.summary({...photoOnly,lecturerMode:'portrait'}),'安全生产月 · 2 位讲师');
- console.log('仅文字模式下只有照片的讲师不计入检查通过');
  // test_lecturer_mode_cards_have_pictures — 呈现方式改成带示意图的卡片，和封面风格一样
  const cards=formCtx.TrainingForm.modeCards();
  for(const key of Object.keys(TrainingPoster.LECTURER_MODES)){

@@ -212,12 +212,6 @@ const TrainingForm=(()=>{
  }
  function photo(index){return speakers[index]?.photo||null;}
  function photoCount(){return mode()==='text'?0:speakers.filter(s=>s.photo).length;}
- function summary(values){
-  const v=values||read();
-  const topic=v.topic.length>14?v.topic.slice(0,14)+'…':v.topic;
-  const count=v.speakers.filter(s=>s.name||s.title||s.bio||(v.lecturerMode!=='text'&&s.photoName)).length;
-  return [topic,count?`${count} 位讲师`:''].filter(Boolean).join(' · ');
- }
  function updateHint(){
   const hint=q('#ref-limit-hint'),n=photoCount(),{provider,maxRefImages}=refLimit;
   let text='';
@@ -226,5 +220,5 @@ const TrainingForm=(()=>{
   hint.textContent=text;hint.hidden=!text;
  }
  function setRefLimit(settings){refLimit={provider:settings.provider,maxRefImages:settings.maxRefImages};if(root)updateHint();}
- return {mount,read,write,state,restore,persist,photo,photoCount,summary,setRefLimit,setExtractor,mergeExtracted,modeCards};
+ return {mount,read,write,state,restore,persist,photo,photoCount,setRefLimit,setExtractor,mergeExtracted,modeCards};
 })();

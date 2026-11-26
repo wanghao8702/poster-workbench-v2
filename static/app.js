@@ -14,6 +14,8 @@ const PURPOSE_RATIO={cover:'5:2',training:'3:4',free:'auto'};
 const PROMPT_IDS={cover:'cover-prompt',training:'generate-prompt',free:'free-prompt'};
 const DIALOG_IDS={cover:'cover-dialog',training:'training-dialog'};
 const SETTINGS_LABEL={cover:'风格与标题设置',training:'填写培训信息'};
+/* Categories whose generated prompt the user has opened to read or edit; the rest show it folded to one line. */
+const promptOpen=new Set();
 const ratioDrafts={};
 /* The prompt each dialog last produced, with the generation settings it was compiled for. */
 const lastCompiled={cover:null,training:null};
@@ -84,7 +86,7 @@ function applyCompiled(category,result){
  editorOf(category).value=result.prompt;
  lastCompiled[category]={prompt:result.prompt,...result.stamp};
  staleCategories.delete(category);
- if(category===purpose){countPrompt();updateStyleUI();}
+ if(category===purpose){renderPrompt();updateStyleUI();}
  updateGenUI();
 }
 /* Only the settings that change a category's prompt count: the cover prompt ignores the provider. */
@@ -141,17 +143,38 @@ TrainingForm.setExtractor(async body=>{
 function silentCompile(category){
  try{const result=compileFor(category);if(result)applyCompiled(category,result);}catch(e){}
 }
-function settingsSummary(category){
- if(category==='training')return TrainingForm.summary();
- if(category==='cover'){const chosen=currentStyle();if(!chosen)return '未选风格 · 自由描述';const title=$('cover-title').value.trim();return [chosen.style.name,title.length>12?title.slice(0,12)+'…':title].filter(Boolean).join(' · ');}
- return '';
+/* The card at the top of the generation panel: what the dialog's saved values will put on the poster. */
+function briefOf(category){
+ if(category==='training'){
+  const b=TrainingPoster.brief(TrainingForm.read());
+  if(b.empty)return {kicker:'培训信息',title:'还没有填写培训信息',subtitle:'填写主题、时间地点和讲师后，会自动拼出完整提示词。',rows:[],empty:true,action:'填写培训信息'};
+  return {kicker:'培训信息',...b,action:'编辑',label:'编辑培训信息'};
+ }
+ const chosen=currentStyle();
+ if(!chosen)return {kicker:'封面',title:'不套风格',subtitle:'直接在下方写画面描述，或选一个风格自动拼出提示词。',rows:[],empty:true,action:'选择风格'};
+ const title=$('cover-title').value.trim(),context=$('cover-context').value.trim();
+ return {kicker:'封面',title:title||'未填标题',subtitle:'',rows:[['风格',chosen.style.name],['补充',context]].filter(row=>row[1]),empty:!title,action:'编辑',label:'编辑封面风格与标题'};
+}
+function renderBrief(){
+ $('brief').hidden=!DIALOG_IDS[purpose];
+ if(!DIALOG_IDS[purpose])return;
+ const b=briefOf(purpose);
+ $('brief').classList.toggle('is-empty',!!b.empty);
+ $('brief-kicker').textContent=b.kicker;
+ $('brief-title').textContent=b.title;
+ $('brief-subtitle').textContent=b.subtitle;$('brief-subtitle').hidden=!b.subtitle;
+ $('brief-rows').replaceChildren(...b.rows.flatMap(([label,value])=>{
+  const dt=document.createElement('dt'),dd=document.createElement('dd');
+  dt.textContent=label;dd.textContent=value;dd.title=value;return [dt,dd];
+ }));
+ $('open-settings').textContent=b.action;
+ if(b.label)$('open-settings').setAttribute('aria-label',b.label);else $('open-settings').removeAttribute('aria-label');
+ $('open-settings').classList.toggle('primary',b.action!=='编辑');$('open-settings').classList.toggle('secondary',b.action==='编辑');
 }
 function setPurpose(next){
  purpose=Object.hasOwn(PURPOSE_RATIO,next)?next:'training';
  for(const chip of document.querySelectorAll('[data-purpose]'))chip.setAttribute('aria-checked',String(chip.dataset.purpose===purpose));
- $('settings-row').hidden=!DIALOG_IDS[purpose];
- $('open-settings').textContent=`${SETTINGS_LABEL[purpose]||''} ↗`;
- $('settings-summary').textContent=settingsSummary(purpose);
+ renderBrief();
  for(const [category,id] of Object.entries(PROMPT_IDS))$(id).hidden=category!==purpose;
  $('prompt-label').htmlFor=PROMPT_IDS[purpose];
 }
@@ -161,7 +184,7 @@ function updateStyleUI(){
  $('style-source').textContent=chosen?'Punk Skill':'';
  const description=chosen?chosen.style.description||'':'';
  $('style-description').textContent=description;$('style-description').hidden=!description;
- $('prompt-label').textContent=purpose==='free'?'自由创作提示词':lastCompiled[purpose]?'完整提示词（可修改）':'画面描述';
+ renderPrompt();
  $('creative-presets').hidden=purpose!=='free';
  syncStyleGrid();
 }
@@ -212,7 +235,7 @@ function closeSettings(save){
  }else if(category==='cover'){['style-select','cover-title','cover-context'].forEach((id,i)=>{$(id).value=saved.data[i];});updateStyleUI();}
  else TrainingForm.restore(saved.data);
  dialogSnapshot=null;
- $('settings-summary').textContent=settingsSummary(category);
+ renderBrief();
  updateStyleUI();updateGenUI();
  dialog.close();
 }
@@ -229,13 +252,13 @@ for(const chip of document.querySelectorAll('[data-purpose]'))chip.onclick=()=>{
  setPurpose(next);
  $('generate-ratio').value=ratioDrafts[next]||PURPOSE_RATIO[next];
  if(next==='training'&&!editorOf('training').value.trim())silentCompile('training');
- updateStyleUI();countPrompt();updateGenUI();
+ updateStyleUI();renderPrompt();updateGenUI();
 };
 const creativeExamples={
  landscape:'生成一张唯美的摄影作品：清晨的湖畔，一座木屋与远山倒映在平静水面，薄雾缓缓升起，柔和的金色晨光穿过松林。画面真实、安静、细腻，有自然的空间层次与电影摄影质感。不添加文字、标志或水印。',
  illustration:'绘制一幅温暖的童话插画：一只橘猫在雨后的森林里经营一间小小的咖啡店，蘑菇屋、木质窗台、热咖啡和微微发光的灯串。手绘水彩与彩铅质感，苔藓绿、奶油黄和暖橘色，主体清晰，细节丰富但不拥挤。不添加文字、标志或水印。'
 };
-for(const button of document.querySelectorAll('[data-creative]'))button.onclick=()=>{promptEditor().value=creativeExamples[button.dataset.creative];countPrompt();promptEditor().focus();};
+for(const button of document.querySelectorAll('[data-creative]'))button.onclick=()=>{promptEditor().value=creativeExamples[button.dataset.creative];renderPrompt();promptEditor().focus();};
 $('generate-ratio').onchange=resyncPrompts;
 const splitPrompt = `请理解这张图片的实际内容、视觉层级和遮挡关系，将其拆分成可独立移动、缩放、隐藏和复用的 RGBA PNG 图层。
 
@@ -347,8 +370,30 @@ for(const button of document.querySelectorAll('[data-reveal]'))button.onclick=()
  button.textContent=showing?'隐藏':'显示';
  button.setAttribute('aria-label',button.getAttribute('aria-label').replace(showing?'显示':'隐藏',showing?'隐藏':'显示'));
 };
-function countPrompt() {$('prompt-count').textContent = `${promptEditor().value.length.toLocaleString()} 字`;}
-for(const id of Object.values(PROMPT_IDS))$(id).oninput=countPrompt;
+/* A prompt the dialog wrote is folded to one line by default: the card above already says what is in it.
+   Prompts the user writes (free creation, a cover without a style, an unfilled training form) stay open. */
+function promptFolds(category){
+ return !!DIALOG_IDS[category]&&!!lastCompiled[category]&&(category!=='cover'||!!currentStyle())&&editorOf(category).value.trim()!=='';
+}
+function renderPrompt(){
+ const editor=promptEditor(),folds=promptFolds(purpose),open=!folds||promptOpen.has(purpose);
+ const edited=folds&&isHandEdited(editor.value,lastCompiled[purpose]?.prompt);
+ $('prompt-count').textContent=`${editor.value.length.toLocaleString()} 字`;
+ $('prompt-label').textContent=folds?(edited?'提示词已手动修改':'提示词已生成'):purpose==='free'?'自由创作提示词':'画面描述';
+ $('prompt-details').classList.toggle('is-collapsed',!open);
+ $('prompt-toggle').hidden=!folds;
+ $('prompt-toggle').textContent=open?'收起':'查看 / 修改';
+ $('prompt-toggle').setAttribute('aria-expanded',String(open));
+ $('prompt-toggle').setAttribute('aria-controls',PROMPT_IDS[purpose]);
+}
+$('prompt-toggle').onclick=()=>{
+ const opening=!promptOpen.has(purpose);
+ if(opening)promptOpen.add(purpose);else promptOpen.delete(purpose);
+ renderPrompt();
+ // A prompt filled in by script has its caret at the end; open it at the top, where it starts.
+ if(opening){const editor=promptEditor();editor.setSelectionRange(0,0);editor.scrollTop=0;editor.focus({preventScroll:true});}
+};
+for(const id of Object.values(PROMPT_IDS))$(id).oninput=renderPrompt;
 
 /* Fit whatever is on the stage to the space the side panels leave over. */
 function fitStage() {
@@ -655,7 +700,7 @@ async function openAsset(item){
   if(item.edit_url){try{const r=await fetch(item.edit_url,{cache:'no-store'});if(r.ok)doc=await r.json();}catch(e){}}
   const asset=assetFromItem(item);
   if(item.kind==='generate'){
-   promptEditor().value=item.prompt.replace(/^【画布比例】[^\n]*\n/,'');countPrompt();
+   promptEditor().value=item.prompt.replace(/^【画布比例】[^\n]*\n/,'');renderPrompt();
    const compiled=lastCompiled[purpose];
    if(compiled&&promptEditor().value!==compiled.prompt)staleCategories.set(purpose,STALE_HISTORY);
    updateGenUI();
@@ -759,7 +804,7 @@ async function init(){
  EditorPanel.init({notify,isBusy:()=>busy});
  TrainingForm.mount($('training-form'));
  setPurpose('training');$('generate-ratio').value=PURPOSE_RATIO.training;
- silentCompile('training');updateStyleUI();countPrompt();updateGenUI();
+ silentCompile('training');updateStyleUI();renderPrompt();updateGenUI();
  await Promise.allSettled([
   (async()=>{
    try{

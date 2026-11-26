@@ -244,6 +244,30 @@ textarea:focus{border-color:var(--accent);outline:0}
 .ratio-row .field-label{margin:0;font-size:var(--fs-xs);white-space:nowrap}
 .ratio-row .size-select{width:180px;padding:7px 10px;font-size:var(--fs-xs)}
 @media(max-width:900px){.prompt-details{flex:none;min-height:240px}.prompt-details .category-prompt{height:240px;min-height:240px;flex:none}.generation-footer{padding-bottom:4px}}
+/* The card above the prompt: what the training form / cover dialog will put on the poster. */
+.brief{flex:none;border:1px solid var(--line);border-radius:6px;background:var(--field);padding:12px 14px 14px}
+.brief-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.brief-kicker{font-size:var(--fs-xs);color:var(--muted)}
+.brief-edit{flex:none;padding:6px 14px;font-size:var(--fs-xs)}
+.brief-title{font:500 var(--fs-md)/1.45 var(--sans);color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.brief.is-empty .brief-title{color:var(--muted)}
+.brief-subtitle{font-size:var(--fs-xs);line-height:1.6;color:var(--muted);margin-top:2px}
+.brief-rows{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 12px;margin:10px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:var(--fs-xs);line-height:1.6}
+.brief-rows:empty{display:none}
+.brief-rows dt{color:var(--muted)}
+.brief-rows dd{margin:0;color:var(--ink);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* Folded prompt: one line under the card; the column keeps the generate button at the bottom. */
+.prompt-heading{gap:8px}
+.prompt-heading #prompt-count{margin-left:auto}
+.prompt-heading:has(.prompt-toggle:not([hidden])) #prompt-count{margin-left:0}
+.prompt-toggle{margin-left:auto;color:var(--accent);font-weight:500;padding:4px 8px}
+.prompt-details.is-collapsed{min-height:0}
+.prompt-details.is-collapsed .category-prompt{display:none}
+.prompt-details.is-collapsed .prompt-heading{border:1px solid var(--line);border-radius:6px;padding:6px 6px 6px 12px}
+.prompt-details.is-collapsed #prompt-label{color:var(--ink)}
+.prompt-details.is-collapsed #prompt-count::before{content:"· ";color:var(--faint)}
+/* Short desktop screens: while the prompt is open the card keeps only its title, so the generate button stays on screen. */
+@media(max-height:820px) and (min-width:901px){#generation-controls:has(.prompt-details:not(.is-collapsed)) :is(.brief-subtitle,.brief-rows){display:none}}
 
 /* Layer list: drag the handle to restack */
 .drag-handle{width:14px;height:32px;align-self:center;cursor:grab;touch-action:none;border-radius:3px;background-image:radial-gradient(circle,var(--icon) 1.2px,transparent 1.4px);background-size:6px 6px;background-position:1px 2px;opacity:.7}
@@ -260,9 +284,6 @@ textarea:focus{border-color:var(--accent);outline:0}
 .key-actions{display:flex;justify-content:space-between;align-items:center;gap:12px}
 
 /* ---------- Settings dialogs ---------- */
-.settings-row{display:flex;align-items:center;gap:10px;padding:0 0 12px;border-bottom:1px solid var(--line);min-width:0}
-.settings-row .settings-button{margin:0;flex:none;padding:8px 14px;font-size:var(--fs-xs)}
-.settings-summary{font-size:var(--fs-xs);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .settings-dialog{width:min(640px,92vw);max-height:86vh;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--white);color:var(--ink);box-shadow:0 24px 60px #15171c33;flex-direction:column;overflow:hidden;overflow:clip}
 .settings-dialog[open]{display:flex}
 .settings-dialog::backdrop{background:#15171c66}

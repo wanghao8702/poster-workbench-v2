@@ -55,7 +55,7 @@ const TrainingForm=(()=>{
   <div class="tf-field"><span class="field-label" id="tf-mode-label">呈现方式</span><div class="mode-grid" role="group" aria-labelledby="tf-mode-label">${modeCards()}</div></div>
   <p id="ref-limit-hint" class="tf-hint" role="status" hidden></p>
   <div id="tf-speakers" class="tf-speakers"></div>
-  <button type="button" id="tf-add-speaker" class="secondary tf-add">＋ 添加讲师</button>`;
+  <button type="button" id="tf-add-speaker" class="secondary tf-add"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>添加讲师</button>`;
   for(const chip of root.querySelectorAll('[data-audience]'))chip.onclick=()=>chip.setAttribute('aria-pressed',String(chip.getAttribute('aria-pressed')!=='true'));
   for(const chip of root.querySelectorAll('[data-format]'))chip.onclick=()=>setSingle('format',chip.dataset.format);
   for(const chip of root.querySelectorAll('[data-mode]'))chip.onclick=()=>{setSingle('mode',chip.dataset.mode);renderSpeakers();};

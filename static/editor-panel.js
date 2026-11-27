@@ -3,13 +3,8 @@
 const EditorPanel=(()=>{
  const E=PosterEditor,C=EditorCore;
  const $=id=>document.getElementById(id);
- const ICON={
-  eye:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
-  eyeOff:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.5 6.6C3.8 8.3 2 12 2 12s3.6 7 10 7a10 10 0 0 0 4.4-1"/></svg>',
-  lock:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
-  unlock:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/></svg>',
-  download:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>'
- };
+ /* Same shapes as the sprite in index.html; every icon in the app comes from there. */
+ const ICON={eye:'<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye"/></svg>',eyeOff:'<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-eye-off"/></svg>',lock:'<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg>',unlock:'<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-unlock"/></svg>',download:'<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-download"/></svg>'};
  const KIND_LABEL={split:'拆层',image:'图片',text:'文字',shape:'形状'};
  let opts={},menuId=null,propsFor=null,swatches=['#15171c','#ffffff'],fontOk={};
  const thumbs=new Map();   // id -> {key, canvas}

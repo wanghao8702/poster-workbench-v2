@@ -33,7 +33,14 @@
 --danger:#8c2e23;     /* oklch(.44 .13 30) */
 --danger-bg:#fae4e0;  /* oklch(.935 .025 30) */
 }
-:root{--serif:"Songti SC","STSong","Noto Serif CJK SC",serif;--sans:"Avenir Next","PingFang SC","Microsoft YaHei",sans-serif;--top:56px;--left:400px;--right:340px}
+/* UI font: Alibaba PuHuiTi 3.0, subset to GB2312 level 1 + every character the interface shows (static/fonts/).
+   A character outside the subset (a rare name, say) falls back to the next font in --sans for that character only. */
+@font-face{font-family:"PuHuiTi";src:url("/fonts/PuHuiTi-Regular.woff2") format("woff2");font-weight:100 400;font-display:swap}
+@font-face{font-family:"PuHuiTi";src:url("/fonts/PuHuiTi-Medium.woff2") format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:"PuHuiTi";src:url("/fonts/PuHuiTi-Bold.woff2") format("woff2");font-weight:600 900;font-display:swap}
+/* Only "p." of the logo, in the Heavy weight. */
+@font-face{font-family:"PuHuiTi Brand";src:url("/fonts/PuHuiTi-Heavy-brand.woff2") format("woff2");font-weight:900;font-display:block}
+:root{--sans:"PuHuiTi","PingFang SC","Microsoft YaHei",sans-serif;--display:var(--sans);--top:56px;--left:400px;--right:340px}
 *{box-sizing:border-box}
 /* Icons: one sprite in index.html (24px grid, 1.6 stroke, round ends), drawn in the current text colour.
    Pseudo-elements cannot use the sprite, so they use the same shapes as masks. */
@@ -53,7 +60,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 [hidden]{display:none!important}
 .asset-library{position:fixed;right:0;top:var(--top);bottom:0;width:min(640px,100%);background:var(--white);z-index:6;border-left:1px solid var(--line);box-shadow:-15px 0 40px #15171c22;display:flex;flex-direction:column;padding:20px;gap:16px;overflow:auto}
 .library-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.library-head h2{font:400 var(--fs-xl) var(--serif)}
+.library-head h2{font:500 var(--fs-xl) var(--display)}
 .library-head h2:focus{outline:0}
 .library-head p,#library-status{font-size:var(--fs-xs);color:var(--muted)}
 .library-tools{display:flex;align-items:center;gap:12px;font-size:var(--fs-xs)}
@@ -74,7 +81,7 @@ h1,h2,h3,p{margin:0}
 /* Top bar */
 .topbar{height:var(--top);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:28px;padding:0 20px;position:relative;z-index:5;background:var(--paper)}
 .brand{font-weight:600;letter-spacing:2px;display:flex;align-items:center;gap:8px;font-size:var(--fs-base);white-space:nowrap}
-.brand-mark{font:bold var(--fs-xl)/1 Georgia,serif;letter-spacing:-4px;margin-right:10px;position:relative;top:-2px}
+.brand-mark{font:900 var(--fs-xl)/1 "PuHuiTi Brand",var(--sans);letter-spacing:-1px;margin-right:10px;position:relative;top:-2px}
 .brand-light{font-weight:400}
 /* The steps are the app's navigation: always visible, the current one filled in. */
 .flow{display:flex;gap:4px;align-items:center;font-size:var(--fs-xs)}
@@ -104,7 +111,7 @@ h1,h2,h3,p{margin:0}
 .key-dot{width:6px;height:6px;border-radius:50%;background:var(--warn-line)}
 .key-dot.connected{background:var(--ok)}
 .key-panel{position:absolute;top:calc(var(--top) - 4px);right:16px;width:min(360px,calc(100vw - 32px));padding:20px;background:var(--white);border:1px solid var(--line);border-radius:6px;box-shadow:0 16px 40px #15171c1f;display:flex;flex-direction:column;gap:8px}
-.key-panel h2{font:400 var(--fs-lg)/1.4 var(--serif)}
+.key-panel h2{font:500 var(--fs-lg)/1.4 var(--display)}
 .key-panel p{font-size:var(--fs-xs);color:var(--muted)}
 .key-panel label{font-size:var(--fs-xs);margin-top:8px}
 .key-input{display:flex;border-bottom:1px solid var(--line-strong);gap:8px}
@@ -169,7 +176,7 @@ textarea:focus{border-color:var(--accent);outline:0}
 .canvas-stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--stage);background-image:linear-gradient(45deg,var(--stage-dot) 25%,transparent 25%),linear-gradient(-45deg,var(--stage-dot) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--stage-dot) 75%),linear-gradient(-45deg,transparent 75%,var(--stage-dot) 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
 .canvas-stage>img,.canvas-stage>canvas{display:block;flex:none;box-shadow:0 18px 50px #15171c24;background:var(--white)}
 .empty-state{text-align:center;padding:24px;display:flex;align-items:center;justify-content:center;flex-direction:column;position:absolute;inset:0;background:var(--stage)}
-.empty-state h1{font:400 clamp(var(--fs-xl),3vw,var(--fs-2xl))/1.3 var(--serif);letter-spacing:-1px;margin:26px 0 10px}
+.empty-state h1{font:400 clamp(var(--fs-xl),3vw,var(--fs-2xl))/1.3 var(--display);letter-spacing:-1px;margin:26px 0 10px}
 .accent{color:var(--accent)}
 .empty-state p{font-size:var(--fs-sm);color:var(--muted);margin-bottom:26px}
 /* Empty state: the sample poster pulled apart into its layers (background, presenter, audience, info bar, title).
@@ -185,7 +192,7 @@ textarea:focus{border-color:var(--accent);outline:0}
 @keyframes plane-lift{from{transform:translateZ(0)}}
 @media(max-height:760px){.empty-art{--plane:130px;--gap:32px;width:250px;height:246px}.empty-art::after{width:196px;height:40px}}
 .busy-overlay{position:absolute;inset:0;background:color-mix(in srgb,var(--paper) 93%,transparent);display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:25px;z-index:3}
-.busy-overlay h3{font:400 var(--fs-xl) var(--serif);margin:24px 0 8px}
+.busy-overlay h3{font:500 var(--fs-xl) var(--display);margin:24px 0 8px}
 .busy-overlay p{font-size:var(--fs-xs);color:var(--muted)}
 .busy-overlay>span{font-size:var(--fs-xs);color:var(--accent);margin-top:6px}
 .spinner{width:38px;height:38px;border:1px solid var(--faint);border-top:2px solid var(--accent);border-radius:50%;animation:spin 1.2s linear infinite}
@@ -206,7 +213,7 @@ kbd{display:inline-block;min-width:20px;padding:0 5px;border:1px solid var(--lin
 /* Shortcut panel (native popover, so Esc and clicking outside close it). Placed above its button by app.js. */
 .shortcut-help{position:fixed;inset:auto;margin:0;width:min(420px,calc(100vw - 16px));max-height:calc(100vh - var(--top) - 80px);overflow:auto;padding:16px 18px 14px;border:1px solid var(--line);border-radius:10px;background:var(--white);color:var(--ink);box-shadow:0 16px 40px #15171c26;font-size:var(--fs-xs)}
 .sh-head{display:flex;align-items:center;justify-content:space-between;margin:-4px -8px 4px 0}
-.sh-head h2{font:400 var(--fs-md)/1.4 var(--serif)}
+.sh-head h2{font:500 var(--fs-md)/1.4 var(--display)}
 .sh-close{color:var(--muted)}
 .shortcut-help section+section{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .shortcut-help h3{font-size:var(--fs-xs);font-weight:500;color:var(--muted);margin-bottom:8px}
@@ -218,7 +225,7 @@ kbd{display:inline-block;min-width:20px;padding:0 5px;border:1px solid var(--lin
 /* Right: every layer, shown or hidden, in one scrolling column */
 .layers-panel{width:var(--right);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--white)}
 .lp-head{flex:none;padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
-.lp-head h2{font:400 var(--fs-lg)/1.3 var(--serif);margin-top:2px}
+.lp-head h2{font:500 var(--fs-lg)/1.3 var(--display);margin-top:2px}
 .lp-head p{font-size:var(--fs-xs);color:var(--muted)}
 .lp-tools{display:flex;gap:2px;margin-left:-9px}
 .layer-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:8px;display:flex;flex-direction:column;gap:4px;scrollbar-width:thin}
@@ -372,7 +379,7 @@ kbd{display:inline-block;min-width:20px;padding:0 5px;border:1px solid var(--lin
 .settings-dialog::backdrop{background:#15171c66}
 .settings-dialog [hidden]{display:none!important}
 .dialog-head{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--line);flex:none}
-.dialog-head h2{font:400 var(--fs-lg)/1.4 var(--serif)}
+.dialog-head h2{font:500 var(--fs-lg)/1.4 var(--display)}
 .dialog-body{padding:4px 22px 18px;overflow:auto;flex:1;min-height:0}
 .dialog-body .size-select{background:var(--field)}
 .dialog-error{margin:0 22px 10px;padding:8px 12px;border-radius:4px;background:var(--danger-bg);color:var(--danger);font-size:var(--fs-xs);flex:none}
@@ -383,7 +390,7 @@ kbd{display:inline-block;min-width:20px;padding:0 5px;border:1px solid var(--lin
 .tf-chips .chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--white)}
 .tf-grid{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:12px;align-items:start}
 .tf-course{min-height:84px;resize:vertical}
-.tf-section{margin:22px 0 2px;padding-top:14px;border-top:1px solid var(--line);font:400 var(--fs-md)/1.4 var(--serif)}
+.tf-section{margin:22px 0 2px;padding-top:14px;border-top:1px solid var(--line);font:500 var(--fs-md)/1.4 var(--display)}
 .tf-hint{margin:10px 0 0;padding:8px 12px;border-radius:4px;background:var(--warn-bg);color:var(--warn-ink);font-size:var(--fs-xs);line-height:1.6}
 .tf-speakers{display:flex;flex-direction:column;gap:10px;margin-top:12px}
 .tf-speaker{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--field)}

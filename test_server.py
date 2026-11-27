@@ -62,6 +62,10 @@ class WorkflowTest(unittest.TestCase):
                  patch.object(server, 'QWEN_KEY_FILE', self.output / '.local-qwen-key')]
         for p in stack: p.start(); self.addCleanup(p.stop)
 
+    def test_static_fonts_are_served_as_woff2(self):
+        # The bundled UI font: without an explicit type Python serves .woff2 as application/octet-stream.
+        self.assertEqual(server.mimetypes.guess_type('static/fonts/PuHuiTi-Regular.woff2')[0], 'font/woff2')
+
     def test_load_env_parses_comments_quotes_and_bom(self):
         path = self.output / '.env'
         path.write_text('\ufeff# 注释\nQWEN_API_KEY = sk-abc \nexport MAAS_API_KEY="m k"\nQWEN_TEXT_MODEL=\'qwen-flash\'\nBAD LINE\nEMPTY=\nURL=https://a/b#frag # 行尾注释\n', encoding='utf-8')

@@ -25,6 +25,9 @@ import zipfile
 import qwen_client
 import training_extract
 
+# The bundled UI font (static/fonts/). Python's table does not know .woff2 on every supported version.
+mimetypes.add_type('font/woff2', '.woff2')
+
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / 'static'
 OUTPUT = ROOT / 'output'

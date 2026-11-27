@@ -392,7 +392,9 @@ function notify(message, error = false) {
 $('status').onclick = () => notify('');
 function showControls(show) {
  $('app').classList.toggle('no-controls', !show);
- $('toggle-controls').textContent = show ? '收起左栏' : '展开左栏';
+ const label = show ? '收起左栏' : '展开左栏';
+ $('toggle-controls').setAttribute('aria-label', label);$('toggle-controls').title = label;
+ $('toggle-controls').querySelector('use').setAttribute('href', show ? '#i-sidebar-close' : '#i-sidebar-open');
  $('toggle-controls').setAttribute('aria-expanded', String(show));
  updateFlow();
 }
@@ -419,6 +421,8 @@ function keyState() {
  const ready=!!$(genKeyId()).value.trim()&&!!$('api-key').value.trim();
  $('key-dot').classList.toggle('connected', ready);
  $('settings').title=ready?'生图与拆层 Key 均已填写':'还有 Key 未填写';
+ // Only a missing key makes this button stand out: it is the one thing that blocks generating and splitting.
+ $('settings').classList.toggle('needs-key', !ready);
 }
 $('settings').onclick = () => showKeyPanel($('key-panel').hidden);
 $('save-key').onclick = () => {keyState();showKeyPanel(false);};

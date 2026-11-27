@@ -50,26 +50,30 @@ const TrainingPoster=(()=>{
  }
 
  /* What the poster will say, for the card in the generation panel. Uses the same rules as compile():
-    headline falls back to the topic, and a speaker counts only if compile() would draw them. */
+    headline falls back to the topic, and a speaker counts only if compile() would draw them.
+    speakers[].index is the speaker's position in the form, so the card can show the uploaded portrait. */
+ const WEEKDAYS=['周日','周一','周二','周三','周四','周五','周六'];
+ function parseDate(value){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(str(value));if(!m)return null;
+  const [year,month,day]=m.slice(1).map(Number),d=new Date(Date.UTC(year,month-1,day));
+  if(d.getUTCMonth()!==month-1||d.getUTCDate()!==day)return null;
+  return {year,month,day,weekday:WEEKDAYS[d.getUTCDay()]};
+ }
  function brief(values){
   const v=values||{};
   const topic=str(v.topic);
-  if(!topic)return {empty:true,title:'',subtitle:'',rows:[]};
+  if(!topic)return {empty:true,title:'',subtitle:''};
   const mode=Object.hasOwn(LECTURER_MODES,v.lecturerMode)?v.lecturerMode:'portrait';
   const format=FORMATS[v.format]?v.format:'线下';
-  const when=[fmtDate(v.date),str(v.time)].filter(Boolean).join(' ');
-  const speakers=(Array.isArray(v.speakers)?v.speakers:[]).map(s=>({name:str(s&&s.name),title:str(s&&s.title),bio:str(s&&s.bio),photoName:str(s&&s.photoName)}))
-   .filter(s=>s.name||s.title||s.bio||(mode!=='text'&&s.photoName));
-  const who=speakers.map((s,i)=>`${s.name||`讲师 ${i+1}`}${s.title?`（${s.title}）`:''}`).join('、');
-  const rows=[
-   when?['时间',`${when} · ${format}`]:['形式',format],
-   ['地点',str(v.venue)],
-   ['受众',(Array.isArray(v.audiences)?v.audiences:[]).map(str).filter(Boolean).join('、')],
-   ['讲师',who?`${who}${who.endsWith('）')?'':' '}· ${LECTURER_MODES[mode]}`:''], // a full-width bracket already carries its own space
-   ['课程',(Array.isArray(v.courseList)?v.courseList:[]).map(str).filter(Boolean).join('、')],
-   ['号召',str(v.cta)]
-  ].filter(row=>row[1]);
-  return {empty:false,title:str(v.headline)||topic,subtitle:str(v.sub),rows};
+  const date=parseDate(v.date);
+  // A date that parses goes into its own block on the card; one that does not stays in the text line.
+  const when=[[date?'':str(v.date),str(v.time)].filter(Boolean).join(' '),format].filter(Boolean).join(' · ');
+  const speakers=(Array.isArray(v.speakers)?v.speakers:[]).map((s,index)=>({index,name:str(s&&s.name),title:str(s&&s.title),bio:str(s&&s.bio),photoName:str(s&&s.photoName)}))
+   .filter(s=>s.name||s.title||s.bio||(mode!=='text'&&s.photoName))
+   .map((s,i)=>({index:s.index,name:s.name||`讲师 ${i+1}`,title:s.title}));
+  const list=x=>(Array.isArray(x)?x:[]).map(str).filter(Boolean);
+  return {empty:false,title:str(v.headline)||topic,subtitle:str(v.sub),date,when,venue:str(v.venue),
+   audiences:list(v.audiences),mode:speakers.length?LECTURER_MODES[mode]:'',speakers,courses:list(v.courseList),cta:str(v.cta)};
  }
 
  function compile(values,opts){

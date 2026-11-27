@@ -93,26 +93,38 @@ assert.ok(T.compile(four,qwen).prompt.length<16000);
 assert.equal(T.defaultSpeaker(1).pose,'seated');
 assert.equal(T.defaultSpeaker(2).outfit,'mandarin');
 console.log('培训海报提示词：必填、回退、空字段、肖像上限、接口差异、呈现方式通过。');
-// test_brief_lists_what_the_poster_will_say — 生图面板的培训信息卡片，替代原来那一行摘要
+// test_brief_lists_what_the_poster_will_say — 生图面板的培训信息卡片：按层级给出结构化字段
 const plainB=x=>JSON.parse(JSON.stringify(x));
-const b=T.brief(base);
+const b=plainB(T.brief(base));
 assert.equal(b.empty,false);
 assert.equal(b.title,'从优秀个人，到卓越管理者');
 assert.equal(b.subtitle,'90 天实战式训练 · 业务高管亲授');
-assert.deepEqual(plainB(b.rows),[['时间','2026 年 3 月 12 日 09:00 · 线下'],['地点','总部 B2 国际会议中心'],['受众','管理层'],
- ['讲师','林悦（人才发展中心总监）· 肖像 + 简介'],['课程','目标对齐与团队共识、关键对话与反馈技巧、90 天落地行动地图'],['号召','3 月 5 日前完成报名']]);
-// test_brief_title_falls_back_to_topic_and_skips_empty_rows
-const bm=T.brief(min);
+assert.deepEqual(b.date,{year:2026,month:3,day:12,weekday:'周四'});
+assert.equal(b.when,'09:00 · 线下');
+assert.equal(b.venue,'总部 B2 国际会议中心');
+assert.deepEqual(b.audiences,['管理层']);
+assert.equal(b.mode,'肖像 + 简介');
+assert.deepEqual(b.speakers,[{index:0,name:'林悦',title:'人才发展中心总监'}]);
+assert.deepEqual(b.courses,['目标对齐与团队共识','关键对话与反馈技巧','90 天落地行动地图']);
+assert.equal(b.cta,'3 月 5 日前完成报名');
+// test_brief_title_falls_back_to_topic_and_skips_empty_fields
+const bm=plainB(T.brief(min));
 assert.equal(bm.title,'安全生产月');assert.equal(bm.subtitle,'');
-assert.deepEqual(plainB(bm.rows),[['形式','线下']],'没有日期时间时只写形式');
-assert.deepEqual(plainB(T.brief({...min,date:'',time:'14:30',format:'线上'}).rows),[['时间','14:30 · 线上']]);
-// test_brief_speakers_follow_the_compiler_rules
-assert.deepEqual(plainB(T.brief(photoOnly).rows),[['形式','线下']],'仅文字模式下只有肖像的讲师不算');
-assert.deepEqual(plainB(T.brief({...photoOnly,lecturerMode:'portrait'}).rows.find(r=>r[0]==='讲师')),['讲师','讲师 1 · 肖像 + 简介']);
-assert.deepEqual(plainB(T.brief({...min,lecturerMode:'feature',speakers:[{...T.defaultSpeaker(0),name:'王强'},{...T.defaultSpeaker(1),title:'安全总监'}]}).rows.find(r=>r[0]==='讲师')),
- ['讲师','王强、讲师 2（安全总监）· 主讲人出镜']);
+assert.equal(bm.date,null);assert.equal(bm.when,'线下');assert.equal(bm.venue,'');
+assert.deepEqual([bm.speakers,bm.mode,bm.courses,bm.audiences,bm.cta],[[],'',[],[],'']);
+assert.equal(T.brief({...min,time:'14:30',format:'线上'}).when,'14:30 · 线上');
+// test_brief_date_that_does_not_parse_stays_as_text
+for(const date of ['下周三','2026-02-30']){
+ const x=T.brief({...min,date});assert.equal(x.date,null,date);assert.equal(x.when,`${date} · 线下`);
+}
+// test_brief_speakers_follow_the_compiler_rules — index 指向原始讲师下标，用来取肖像
+assert.deepEqual(plainB(T.brief(photoOnly).speakers),[],'仅文字模式下只有肖像的讲师不算');
+assert.deepEqual(plainB(T.brief({...photoOnly,lecturerMode:'portrait'}).speakers),[{index:0,name:'讲师 1',title:''}]);
+const two=plainB(T.brief({...min,lecturerMode:'feature',speakers:[{...T.defaultSpeaker(0)},{...T.defaultSpeaker(1),name:'王强'},{...T.defaultSpeaker(2),title:'安全总监'}]}));
+assert.deepEqual(two.speakers,[{index:1,name:'王强',title:''},{index:2,name:'讲师 2',title:'安全总监'}]);
+assert.equal(two.mode,'主讲人出镜');
 // test_brief_without_topic_is_empty
 const be=T.brief({...min,topic:'  '});
 assert.equal(be.empty,true);assert.equal(be.title,'');
-assert.ok(!/undefined|null|NaN/.test(JSON.stringify([b,bm,be])));
-console.log('培训信息卡片：标题回退、空行省略、讲师规则一致通过。');
+assert.ok(!/undefined|NaN/.test(JSON.stringify([b,bm,be])));
+console.log('培训信息卡片：标题回退、日期解析、空字段省略、讲师规则一致通过。');

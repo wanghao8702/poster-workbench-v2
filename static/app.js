@@ -143,17 +143,78 @@ TrainingForm.setExtractor(async body=>{
 function silentCompile(category){
  try{const result=compileFor(category);if(result)applyCompiled(category,result);}catch(e){}
 }
-/* The card at the top of the generation panel: what the dialog's saved values will put on the poster. */
+/* The card at the top of the generation panel: what the dialog's saved values will put on the poster,
+   laid out like an event ticket. The main part answers "what, when, where, who"; the stub under the
+   perforation holds the details (courses, audience, call to action). No field labels: the form says what it is. */
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
 function briefOf(category){
  if(category==='training'){
   const b=TrainingPoster.brief(TrainingForm.read());
-  if(b.empty)return {kicker:'培训信息',title:'还没有填写培训信息',subtitle:'填写主题、时间地点和讲师后，会自动拼出完整提示词。',rows:[],empty:true,action:'填写培训信息'};
+  if(b.empty)return {kicker:'培训信息',title:'还没有填写培训信息',subtitle:'填写主题、时间地点和讲师后，会自动拼出完整提示词。',empty:true,action:'填写培训信息'};
   return {kicker:'培训信息',...b,action:'编辑',label:'编辑培训信息'};
  }
  const chosen=currentStyle();
- if(!chosen)return {kicker:'封面',title:'不套风格',subtitle:'直接在下方写画面描述，或选一个风格自动拼出提示词。',rows:[],empty:true,action:'选择风格'};
- const title=$('cover-title').value.trim(),context=$('cover-context').value.trim();
- return {kicker:'封面',title:title||'未填标题',subtitle:'',rows:[['风格',chosen.style.name],['补充',context]].filter(row=>row[1]),empty:!title,action:'编辑',label:'编辑封面风格与标题'};
+ if(!chosen)return {kicker:'封面',title:'不套风格',subtitle:'直接在下方写画面描述，或选一个风格自动拼出提示词。',empty:true,action:'选择风格'};
+ const title=$('cover-title').value.trim();
+ return {kicker:'封面',title:title||'未填标题',subtitle:'',empty:!title,action:'编辑',label:'编辑封面风格与标题',
+  style:{id:chosen.id,name:chosen.style.name},context:$('cover-context').value.trim()};
+}
+function briefFacts(b){
+ const out=[];
+ if(b.when||b.venue){
+  const row=el('div','brief-event');
+  if(b.date){
+   const stub=el('div','brief-date');stub.setAttribute('aria-label',`${b.date.month} 月 ${b.date.day} 日 ${b.date.weekday}`);
+   stub.append(el('span','brief-date-m',`${b.date.month} 月`),el('span','brief-date-d',String(b.date.day)),el('span','brief-date-w',b.date.weekday));
+   row.append(stub);
+  }
+  const text=el('div','brief-event-text');
+  if(b.when)text.append(el('p','brief-when',b.when));
+  if(b.venue){const venue=el('p','brief-venue',b.venue);venue.title=b.venue;text.append(venue);}
+  row.append(text);out.push(row);
+ }
+ if(b.speakers?.length){
+  // One or two lecturers get a row each; more fold into one row of overlapping avatars.
+  const avatar=s=>{const a=el('span','brief-avatar'),photo=TrainingForm.photo(s.index);a.setAttribute('aria-hidden','true');
+   if(photo){const img=el('img');img.src=photo.dataUrl;img.alt='';a.append(img);}else a.textContent=[...s.name][0];return a;};
+  const list=el('ul','brief-people');list.setAttribute('aria-label',`讲师 · ${b.mode}`);
+  if(b.speakers.length<=2)for(const s of b.speakers){
+   const li=el('li','brief-person'),who=el('span','brief-who');
+   who.append(el('span','brief-name',s.name));if(s.title)who.append(el('span','brief-role',s.title));
+   who.title=[s.name,s.title].filter(Boolean).join(' · ');li.append(avatar(s),who);list.append(li);
+  }else{
+   const li=el('li','brief-person'),stack=el('span','brief-stack'),who=el('span','brief-who');
+   stack.append(...b.speakers.slice(0,3).map(avatar));
+   who.append(el('span','brief-name',`${b.speakers[0].name}等 ${b.speakers.length} 位讲师`));
+   who.title=b.speakers.map(s=>[s.name,s.title].filter(Boolean).join(' · ')).join('\n');li.append(stack,who);list.append(li);
+  }
+  list.firstChild.append(el('span','brief-tag',b.mode));
+  out.push(list);
+ }
+ if(b.style){
+  const row=el('div','brief-style'),thumb=el('span','brief-thumb'),img=el('img');
+  img.src=`/punk-thumbs/${b.style.id}.jpg`;img.alt='';img.addEventListener('error',()=>thumb.remove());thumb.append(img);
+  const text=el('div','brief-event-text');text.append(el('p','brief-when',b.style.name),el('p','brief-venue','封面风格'));
+  row.append(thumb,text);out.push(row);
+ }
+ return out;
+}
+function briefStub(b){
+ const out=[];
+ if(b.courses?.length){
+  const list=el('ol','brief-courses');list.setAttribute('aria-label',`课程 ${b.courses.length} 项`);
+  for(const [i,c] of b.courses.slice(0,3).entries()){const li=el('li');li.append(el('span','brief-num',String(i+1).padStart(2,'0')),el('span','brief-course',c));li.title=c;list.append(li);}
+  if(b.courses.length>3)list.append(el('li','brief-more',`还有 ${b.courses.length-3} 项课程`));
+  out.push(list);
+ }
+ if(b.audiences?.length||b.cta){
+  const foot=el('div','brief-foot');
+  if(b.audiences?.length){const tags=el('span','brief-tags');tags.setAttribute('aria-label','受众');for(const a of b.audiences)tags.append(el('span','brief-chip',a));foot.append(tags);}
+  if(b.cta){const cta=el('span','brief-cta',b.cta);cta.title=b.cta;foot.append(cta);}
+  out.push(foot);
+ }
+ if(b.context){const p=el('p','brief-context',b.context);p.title=b.context;out.push(p);}
+ return out;
 }
 function renderBrief(){
  $('brief').hidden=!DIALOG_IDS[purpose];
@@ -161,15 +222,15 @@ function renderBrief(){
  const b=briefOf(purpose);
  $('brief').classList.toggle('is-empty',!!b.empty);
  $('brief-kicker').textContent=b.kicker;
- $('brief-title').textContent=b.title;
+ $('brief-title').textContent=b.title;$('brief-title').title=b.title;
  $('brief-subtitle').textContent=b.subtitle;$('brief-subtitle').hidden=!b.subtitle;
- $('brief-rows').replaceChildren(...b.rows.flatMap(([label,value])=>{
-  const dt=document.createElement('dt'),dd=document.createElement('dd');
-  dt.textContent=label;dd.textContent=value;dd.title=value;return [dt,dd];
- }));
+ $('brief-facts').replaceChildren(...briefFacts(b));
+ const stub=briefStub(b);
+ $('brief-stub').replaceChildren(...stub);$('brief-stub').hidden=!stub.length;
+ $('brief').classList.toggle('has-stub',stub.length>0);
  $('open-settings').textContent=b.action;
  if(b.label)$('open-settings').setAttribute('aria-label',b.label);else $('open-settings').removeAttribute('aria-label');
- $('open-settings').classList.toggle('primary',b.action!=='编辑');$('open-settings').classList.toggle('secondary',b.action==='编辑');
+ $('open-settings').className=b.action==='编辑'?'quiet brief-edit':'primary brief-edit';
 }
 function setPurpose(next){
  purpose=Object.hasOwn(PURPOSE_RATIO,next)?next:'training';

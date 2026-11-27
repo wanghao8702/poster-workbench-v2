@@ -150,7 +150,7 @@ const EditorPanel=(()=>{
   const picker=h('input',{type:'color','data-key':key,'aria-label':label,title:label});
   if(!withSwatches)return picker;
   // Colours are set from script: the page's CSP forbids inline style attributes, not element.style.
-  const sw=h('span',{class:'ctx-swatches'},...swatches.map(c=>{const b=h('button',{type:'button',class:'swatch','data-color':c,title:c,'aria-label':`使用颜色 ${c}`});b.style.background=c;return b;}));
+  const sw=h('span',{class:'ctx-swatches'},...swatches.map(c=>{const b=h('button',{type:'button',class:'swatch','data-color':c,title:c,'aria-label':`使用颜色 ${c}`});b.style.backgroundColor=c;return b;}));
   return h('span',{class:'ctx-color'},picker,sw);
  }
  const toggle=(key,text,label,cls='')=>h('label',{class:`ctx-toggle ${cls}`,title:label},h('input',{type:'checkbox','data-key':key,'aria-label':label}),text);

@@ -163,8 +163,10 @@ textarea:focus{border-color:var(--accent);outline:0}
 
 /* Centre: the stage gets every pixel the side panels do not need */
 .stage-panel{display:flex;flex-direction:column;min-width:0;min-height:0}
-.stage-bar{height:48px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 18px;border-bottom:1px solid var(--line);gap:12px}
-.stage-title{display:flex;gap:12px;align-items:center;min-width:0}
+/* One row when it fits. When it does not (left column open on a laptop screen), the actions wrap to a second row
+   on the right instead of the title being squeezed under them. The canvas below refits through its ResizeObserver. */
+.stage-bar{min-height:48px;flex:none;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:7px 18px;border-bottom:1px solid var(--line);gap:4px 12px}
+.stage-title{display:flex;gap:12px;align-items:center;min-width:0;max-width:100%}
 .stage-title #toggle-controls{margin-left:-8px}
 /* The canvas title: what is on the stage, then its size. With nothing on the stage the placeholder stays muted. */
 #image-meta{font-size:var(--fs-sm);font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -172,6 +174,7 @@ textarea:focus{border-color:var(--accent);outline:0}
 #image-size:empty{display:none}
 .stage-title:has(#image-size:empty) #image-meta{font-weight:400;color:var(--muted)}
 .stage-actions,.edit-group{display:flex;gap:2px;align-items:center}
+.stage-actions{flex:0 1 auto;max-width:100%;flex-wrap:wrap;justify-content:flex-end;margin-left:auto} /* very narrow: the actions themselves wrap */
 .divider{width:1px;height:16px;background:var(--line);margin:0 6px}
 .canvas-stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--stage);background-image:linear-gradient(45deg,var(--stage-dot) 25%,transparent 25%),linear-gradient(-45deg,var(--stage-dot) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--stage-dot) 75%),linear-gradient(-45deg,transparent 75%,var(--stage-dot) 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
 .canvas-stage>img,.canvas-stage>canvas{display:block;flex:none;box-shadow:0 18px 50px #15171c24;background:var(--white)}

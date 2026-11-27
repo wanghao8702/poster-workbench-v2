@@ -227,6 +227,7 @@ node --check static/app.js   # 其余 static/*.js 同理
 | --- | --- | --- |
 | [Punk-Skill](https://github.com/adrianpunk/Punk-Skill) | 31 种封面与海报风格规则，以及风格示例图（`static/punk-thumbs/`，由仓库 `screenshots/punk-cover-styles/` 缩小为 640 px 宽的 JPEG） | `v1.0.0-mit`，提交 `0380629c81b4cc6870722cb99fb6fe0ee416b56f` |
 
+| [阿里巴巴普惠体 3.0](https://www.alibabafont.com/) | 界面字体，常规 / 中等 / 粗三个字重和标识用的特粗，裁成常用 3,755 字加界面用字（`static/fonts/`，约 1.9 MB；重新生成见 `tools/subset_fonts.py`） | 3.0（阿里巴巴提供的免费商用字体，以官网授权说明为准；字体文件内保留了版权信息） |
 | [Fabric.js](https://github.com/fabricjs/fabric.js) | 图层编辑器的画布库，本地文件 `static/vendor/fabric.min.js` | `7.4.0`（MIT，许可证见 `static/vendor/fabric-LICENSE.txt`） |
 
 Punk 集成仅使用上述 MIT 历史版本。原始来源与授权文件保留在 `vendor/`，许可证另见 [static/punk-license.txt](static/punk-license.txt)。

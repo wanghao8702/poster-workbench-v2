@@ -177,7 +177,21 @@ textarea:focus{border-color:var(--accent);outline:0}
 @keyframes status-in{from{transform:translateY(100%)}to{transform:none}}
 .stage-foot{height:40px;flex:none;display:flex;align-items:center;gap:14px;padding:0 18px;border-top:1px solid var(--line);font-size:var(--fs-xs);color:var(--muted);white-space:nowrap;overflow:hidden}
 .stage-foot strong{font-weight:500;color:var(--ink)}
-.foot-hint{margin-left:auto;overflow:hidden;text-overflow:ellipsis}
+.foot-help{margin-left:auto;gap:6px;color:var(--muted)}
+.foot-help:hover{color:var(--ink)}
+.foot-help[aria-expanded=true]{color:var(--accent);background:var(--accent-soft)}
+kbd{display:inline-block;min-width:20px;padding:0 5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;background:var(--white);color:var(--ink-2);font:500 var(--fs-xs)/18px var(--sans);text-align:center;font-variant-numeric:tabular-nums}
+/* Shortcut panel (native popover, so Esc and clicking outside close it). Placed above its button by app.js. */
+.shortcut-help{position:fixed;inset:auto;margin:0;width:min(420px,calc(100vw - 16px));max-height:calc(100vh - var(--top) - 80px);overflow:auto;padding:16px 18px 14px;border:1px solid var(--line);border-radius:10px;background:var(--white);color:var(--ink);box-shadow:0 16px 40px #15171c26;font-size:var(--fs-xs)}
+.sh-head{display:flex;align-items:center;justify-content:space-between;margin:-4px -8px 4px 0}
+.sh-head h2{font:400 var(--fs-md)/1.4 var(--serif)}
+.sh-close{color:var(--muted)}
+.shortcut-help section+section{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.shortcut-help h3{font-size:var(--fs-xs);font-weight:500;color:var(--muted);margin-bottom:8px}
+.shortcut-help dl{display:grid;grid-template-columns:7.75rem minmax(0,1fr);gap:7px 16px;margin:0;align-items:baseline;line-height:1.6}
+.shortcut-help dt{color:var(--ink);white-space:nowrap}
+.shortcut-help dd{margin:0;color:var(--ink-2)}
+.sh-foot{margin-top:12px;color:var(--muted);line-height:1.8}
 
 /* Right: every layer, shown or hidden, in one scrolling column */
 .layers-panel{width:var(--right);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--white)}
@@ -212,7 +226,6 @@ textarea:focus{border-color:var(--accent);outline:0}
   textarea{min-height:150px;flex:none}
   .canvas-stage{flex:none;height:62vh}
   .stage-bar,.stage-foot{padding:0 12px}
-  .foot-hint{display:none}
   .layers-panel{width:auto;border-left:0;border-top:1px solid var(--line)}
   .layer-list{max-height:52vh}
   .topbar{gap:10px;padding:0 12px}

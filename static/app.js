@@ -348,7 +348,9 @@ $('reset-split-prompt').onclick=()=>{
 };
 const pad2 = n => String(n).padStart(2, '0');
 const OUTPUT_SIZES=EditorCore.OUTPUT_SIZES;
-$('output-ratio').onchange=()=>{if(PosterEditor.isOpen())PosterEditor.setOutputRatio($('output-ratio').value);};
+/* The note on how a different export size is filled only matters once a size other than the original is chosen. */
+function showRatioNote(){$('ratio-note').hidden=$('output-ratio').value==='auto';}
+$('output-ratio').onchange=()=>{showRatioNote();if(PosterEditor.isOpen())PosterEditor.setOutputRatio($('output-ratio').value);};
 
 function setMode(next) {
  mode = next;
@@ -473,6 +475,7 @@ async function readImage(url) {
 }
 function hideEditor(){
  PosterEditor.close();setSaveState('');restoreAfterEditor();
+ $('help-toggle').hidden=true;if($('shortcut-help').matches(':popover-open'))$('shortcut-help').hidePopover();
  for(const id of ['editor-controls','layers-section','editor-host','sample-note','restore-original'])$(id).hidden=true;
  updateFlow();
 }
@@ -488,7 +491,6 @@ async function loadSource(url, label, asset=null) {
  $('canvas-step').textContent = 'ORIGINAL';
  $('selected-layer').textContent = '画面已就绪';
  $('layer-position').textContent = asset?'可以直接编辑，或拆成独立图层':'下一步拆成独立图层';
- $('canvas-caption').textContent = '';
  $('download-original').href = url;
  $('download-original').hidden = false;
  $('next-actions').hidden = false;$('direct-edit').hidden = !asset;
@@ -509,12 +511,12 @@ async function openLayers(o){
  $('sample-note').hidden=!o.sample;$('restore-original').hidden=!currentAsset;
  collapseForEditor();
  const doc=await PosterEditor.open({assetId:currentAsset?.id||null,baseUrl:o.baseUrl,layers:o.layers,doc:o.doc||null,sample:!!o.sample});
- $('output-ratio').value=doc.outputRatio;
+ $('output-ratio').value=doc.outputRatio;showRatioNote();
  EditorPanel.setPalette(PosterEditor.backdrop());
  const size=PosterEditor.scene();
  $('image-meta').textContent=`${o.sample?'示例 · ':''}${o.title||'图层编辑'} · ${size.width} × ${size.height}`;
  $('canvas-step').textContent='LAYERS';
- $('canvas-caption').textContent='拖动自动对齐 · Alt 关闭吸附 · Shift 旋转 15° · 双击文字编辑 · Ctrl+Z 撤销';
+ $('help-toggle').hidden=false;
  $('layer-note').textContent=o.note||'拆出的文字是像素图片，改不了字：可以隐藏它，再用「＋文字」写一段新的。';
  setSaveState(currentAsset&&o.doc?'saved':'');
  updateFlow();EditorPanel.refresh();
@@ -529,7 +531,7 @@ async function clearStage(){
  $('preview-image').removeAttribute('src');
  $('empty-state').hidden=false;
  $('image-meta').textContent='等待你的第一张作品';$('canvas-step').textContent='PREVIEW';
- $('selected-layer').textContent='生成或上传一张图开始';$('layer-position').textContent='';$('canvas-caption').textContent='';
+ $('selected-layer').textContent='生成或上传一张图开始';$('layer-position').textContent='';
  setMode('generate');
  notify('画布已清空。提示词和填写的信息都保留，之前的结果和编辑稿仍在「我的素材库」。');
 }
@@ -856,6 +858,19 @@ $('export-composite').onclick=async()=>{
  }catch(e){notify('导出失败：'+e.message,true);}
 };
 document.addEventListener('keydown',event=>{if(!$('asset-library').hidden&&event.key==='Escape')closeLibrary();});
+/* Shortcut panel: opens above its button in the canvas footer; '?' toggles it while editing (not while typing). */
+$('shortcut-help').addEventListener('toggle',event=>{
+ $('help-toggle').setAttribute('aria-expanded',String(event.newState==='open'));
+ if(event.newState!=='open')return;
+ const r=$('help-toggle').getBoundingClientRect(),panel=$('shortcut-help');
+ panel.style.bottom=`${Math.round(innerHeight-r.top+8)}px`;
+ panel.style.right=`${Math.round(Math.max(8,innerWidth-r.right))}px`;
+});
+document.addEventListener('keydown',event=>{
+ if(event.key!=='?'||event.ctrlKey||event.metaKey||event.altKey||$('help-toggle').hidden)return;
+ if(event.target.closest?.('input,textarea,select,[contenteditable]')||document.querySelector('dialog[open]'))return;
+ event.preventDefault();$('shortcut-help').togglePopover();
+});
 async function init(){
  if(DEMO){$('demo-banner').hidden=false;$('demo-banner').textContent=DEMO_MSG;}
  PosterEditor.init({host:$('editor-host'),canvasEl:$('editor-canvas'),stage:$('canvas-stage'),notify,uploader:uploadToRecord,

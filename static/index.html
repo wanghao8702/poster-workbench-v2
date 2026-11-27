@@ -129,14 +129,13 @@
       <div id="busy-overlay" class="busy-overlay" hidden><div class="spinner"></div><h3 id="busy-title">正在生成你的画面</h3><p id="busy-detail">通常需要 30–90 秒，请保持页面打开。</p><span id="elapsed">0 秒</span></div>
       <div id="status" role="status" aria-live="polite" title="点击关闭" hidden></div>
     </div>
-    <div class="stage-foot"><strong id="selected-layer">生成或上传一张图开始</strong><span id="layer-position"></span><span id="canvas-caption" class="foot-hint"></span></div>
+    <div class="stage-foot"><strong id="selected-layer">生成或上传一张图开始</strong><span id="layer-position"></span><button type="button" id="help-toggle" class="quiet foot-help" popovertarget="shortcut-help" aria-haspopup="dialog" hidden>快捷键 <kbd>?</kbd></button></div>
   </section>
 
   <aside id="layers-section" class="layers-panel" aria-label="图层" hidden>
     <div class="lp-head">
       <div><span class="step">LAYERS</span><h2 id="layer-count">图层</h2><p id="layer-summary"></p></div>
       <div class="lp-tools"><button id="select-all" class="quiet">全部显示</button><button id="reverse-stack" class="quiet">反转顺序 ⇅</button></div>
-      <p class="layer-note">按住左侧手柄上下拖动可调整顺序，上方图层覆盖下方。右键图层有更多操作。</p>
     </div>
     <div id="layer-list" class="layer-list"></div>
     <div class="lp-foot">
@@ -148,7 +147,7 @@
         <option value="5:2">5:2 · 1500 × 600</option><option value="4:3">4:3 · 1600 × 1200</option>
         <option value="3:4">3:4 · 1200 × 1600</option>
       </select>
-      <p class="layer-note">不拉伸画面。比例接近时铺满画布、边缘略微裁切；相差较大时完整保留画面并留白。</p>
+      <p id="ratio-note" class="layer-note" hidden>不拉伸画面：比例接近时铺满、边缘略裁；相差较大时完整保留画面并留白。</p>
       <button id="export-composite" class="primary">导出当前画面 ↓</button>
       <a id="download-zip" class="secondary" download>原始图层 ZIP ↓</a>
     </div>
@@ -166,6 +165,30 @@
   <button role="menuitem" data-action="copy">复制一层</button>
   <button role="menuitem" data-action="delete">删除</button>
   <button role="menuitem" data-action="download">下载这一层</button>
+</div>
+<div id="shortcut-help" class="shortcut-help" popover role="dialog" aria-labelledby="shortcut-help-title">
+  <div class="sh-head"><h2 id="shortcut-help-title">操作与快捷键</h2><button type="button" class="quiet sh-close" popovertarget="shortcut-help" popovertargetaction="hide" aria-label="关闭">✕</button></div>
+  <section><h3>画布</h3><dl>
+    <dt>拖动</dt><dd>移动，自动对齐画布中线、边缘和其他图层</dd>
+    <dt><kbd>Alt</kbd> + 拖动</dt><dd>临时关闭对齐吸附</dd>
+    <dt><kbd>Shift</kbd> + 旋转</dt><dd>以 15° 为步长旋转</dd>
+    <dt>双击文字</dt><dd>直接改字</dd>
+    <dt><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></dt><dd>微调 1 像素，按住 <kbd>Shift</kbd> 一次 10 像素</dd>
+    <dt><kbd>Esc</kbd></dt><dd>取消选中</dd>
+  </dl></section>
+  <section><h3>编辑</h3><dl>
+    <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>撤销</dd>
+    <dt><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Z</kbd></dt><dd>重做（<kbd>Ctrl</kbd> <kbd>Y</kbd> 也可以）</dd>
+    <dt><kbd>Ctrl</kbd> <kbd>D</kbd></dt><dd>复制一层</dd>
+    <dt><kbd>Ctrl</kbd> <kbd>C</kbd> <kbd>Ctrl</kbd> <kbd>V</kbd></dt><dd>复制、粘贴图层；剪贴板里有图片时粘贴图片</dd>
+    <dt><kbd>Delete</kbd></dt><dd>删除；拆出的图层改为隐藏</dd>
+    <dt>拖入图片</dt><dd>把 logo、二维码直接拖进画布</dd>
+  </dl></section>
+  <section><h3>图层列表</h3><dl>
+    <dt>拖动左侧手柄</dt><dd>调整叠放顺序，上方覆盖下方</dd>
+    <dt>右键图层</dt><dd>置顶、锁定、复制、下载这一层等</dd>
+  </dl></section>
+  <p class="sh-foot">Mac 上用 <kbd>⌘</kbd> 代替 Ctrl。按 <kbd>?</kbd> 打开或关闭这个面板。</p>
 </div>
 <dialog id="cover-dialog" class="settings-dialog cover-dialog" aria-labelledby="cover-dialog-title">
   <div class="dialog-head"><h2 id="cover-dialog-title">封面风格与标题</h2><button type="button" class="quiet dialog-x" data-close aria-label="关闭">✕</button></div>

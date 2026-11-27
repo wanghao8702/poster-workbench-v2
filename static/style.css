@@ -54,6 +54,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .asset-library{position:fixed;right:0;top:var(--top);bottom:0;width:min(640px,100%);background:var(--white);z-index:6;border-left:1px solid var(--line);box-shadow:-15px 0 40px #15171c22;display:flex;flex-direction:column;padding:20px;gap:16px;overflow:auto}
 .library-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .library-head h2{font:400 var(--fs-xl) var(--serif)}
+.library-head h2:focus{outline:0}
 .library-head p,#library-status{font-size:var(--fs-xs);color:var(--muted)}
 .library-tools{display:flex;align-items:center;gap:12px;font-size:var(--fs-xs)}
 .library-tools select{width:auto;flex:1}
@@ -119,6 +120,7 @@ textarea:focus{border-color:var(--accent);outline:0}
 .field-note{font-size:var(--fs-xs);color:var(--muted);margin:8px 0 14px}
 .size-select{width:100%;flex:none;border:1px solid var(--line);border-radius:4px;background:var(--field);color:var(--ink);font:inherit;font-size:var(--fs-xs);padding:9px 10px}
 .size-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.size-select:focus{border-color:var(--accent)}
 .export-label{margin:0}
 .punk-fields{flex:none}
 .punk-fields .field-label{margin:8px 0 5px}

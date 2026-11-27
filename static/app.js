@@ -279,7 +279,10 @@ function openSettings(){
  dialogError(category,'');
  if(category==='training')TrainingForm.setRefLimit(genSettings());
  dialog.showModal();
- if(category==='cover')$('style-grid').querySelector('[aria-pressed="true"]')?.scrollIntoView({block:'nearest'});
+ // showModal() focuses the first focusable element, the ✕ in the corner. Start where the work starts instead:
+ // the chosen style card, or the training topic at the top of the form.
+ if(category==='cover'){const card=$('style-grid').querySelector('[aria-pressed="true"]');card?.focus({preventScroll:true});card?.scrollIntoView({block:'nearest'});}
+ else{dialog.querySelector('.dialog-body').scrollTop=0;$('tf-topic').focus({preventScroll:true});}
 }
 function closeSettings(save){
  const saved=dialogSnapshot;if(!saved)return;
@@ -287,7 +290,7 @@ function closeSettings(save){
  if(save){
   let result;
   try{result=compileFor(category);if(result&&result.prompt.length>16000)throw new Error('提示词超过 16000 字，请精简课程内容或讲师资历。');}
-  catch(e){dialogError(category,e.message);return;}
+  catch(e){dialogError(category,e.message);if(category==='training'&&!TrainingForm.read().topic)$('tf-topic').focus();return;}
   if(result){
    if(isHandEdited(editorOf(category).value,lastCompiled[category]?.prompt)&&!confirm('将覆盖你对提示词的手动修改，确定吗？'))return;
    applyCompiled(category,result);
@@ -782,7 +785,7 @@ async function openAsset(item){
 $('open-library').onclick=()=>{
  if(DEMO){notify(DEMO_MSG,true);return;}
  const show=$('asset-library').hidden;$('asset-library').hidden=!show;$('open-library').setAttribute('aria-expanded',String(show));
- if(show){showKeyPanel(false);refreshLibrary();$('close-library').focus();}
+ if(show){showKeyPanel(false);refreshLibrary();$('library-title').focus();} // the heading, so it is announced; Tab then reaches 关闭 and the filter
 };
 $('close-library').onclick=closeLibrary;
 $('refresh-library').onclick=refreshLibrary;

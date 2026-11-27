@@ -494,8 +494,7 @@ async function loadSource(url, label, asset=null) {
  $('preview-image').src = url;
  $('preview-image').hidden = false;
  $('empty-state').hidden = true;
- $('image-meta').textContent = `${label} · ${img.naturalWidth} × ${img.naturalHeight}`;
- $('canvas-step').textContent = 'ORIGINAL';
+ $('image-meta').textContent = label;$('image-size').textContent = `${img.naturalWidth} × ${img.naturalHeight}`;
  $('selected-layer').textContent = '画面已就绪';
  $('layer-position').textContent = asset?'可以直接编辑，或拆成独立图层':'下一步拆成独立图层';
  $('download-original').href = url;
@@ -521,8 +520,7 @@ async function openLayers(o){
  $('output-ratio').value=doc.outputRatio;showRatioNote();
  EditorPanel.setPalette(PosterEditor.backdrop());
  const size=PosterEditor.scene();
- $('image-meta').textContent=`${o.sample?'示例 · ':''}${o.title||'图层编辑'} · ${size.width} × ${size.height}`;
- $('canvas-step').textContent='LAYERS';
+ $('image-meta').textContent=`${o.sample?'示例 · ':''}${o.title||'图层编辑'}`;$('image-size').textContent=`${size.width} × ${size.height}`;
  $('help-toggle').hidden=false;
  $('layer-note').textContent=o.note||'拆出的文字是像素图片，改不了字：可以隐藏它，再用「＋文字」写一段新的。';
  setSaveState(currentAsset&&o.doc?'saved':'');
@@ -537,7 +535,7 @@ async function clearStage(){
  for(const id of ['preview-image','download-original','next-actions','clear-stage'])$(id).hidden=true;
  $('preview-image').removeAttribute('src');
  $('empty-state').hidden=false;
- $('image-meta').textContent='等待你的第一张作品';$('canvas-step').textContent='PREVIEW';
+ $('image-meta').textContent='等待你的第一张作品';$('image-size').textContent='';
  $('selected-layer').textContent='生成或上传一张图开始';$('layer-position').textContent='';
  setMode('generate');
  notify('画布已清空。提示词和填写的信息都保留，之前的结果和编辑稿仍在「我的素材库」。');

@@ -95,7 +95,7 @@
 
   <section class="stage-panel" aria-label="画布">
     <div class="stage-bar">
-      <div class="stage-title"><button type="button" id="toggle-controls" class="quiet icon-only" aria-expanded="true" aria-controls="controls" aria-label="收起左栏" title="收起左栏"><svg class="icon" aria-hidden="true"><use href="#i-sidebar-close"/></svg></button><span class="step" id="canvas-step">PREVIEW</span><span id="image-meta">等待你的第一张作品</span><span id="sample-note" class="sample-note" title="示例上的改动不会保存，用「导出当前画面」可以保留结果" hidden>改动不会保存</span></div>
+      <div class="stage-title"><button type="button" id="toggle-controls" class="quiet icon-only" aria-expanded="true" aria-controls="controls" aria-label="收起左栏" title="收起左栏"><svg class="icon" aria-hidden="true"><use href="#i-sidebar-close"/></svg></button><span id="image-meta">等待你的第一张作品</span><span id="image-size"></span><span id="sample-note" class="sample-note" title="示例上的改动不会保存，用「导出当前画面」可以保留结果" hidden>改动不会保存</span></div>
       <div class="stage-actions">
         <span id="editor-controls" class="edit-group" hidden>
           <button id="undo" class="quiet" title="撤销（⌘Z / Ctrl+Z）">撤销</button>
@@ -135,7 +135,7 @@
 
   <aside id="layers-section" class="layers-panel" aria-label="图层" hidden>
     <div class="lp-head">
-      <div><span class="step">LAYERS</span><h2 id="layer-count">图层</h2><p id="layer-summary"></p></div>
+      <div><h2 id="layer-count">图层</h2><p id="layer-summary"></p></div>
       <div class="lp-tools"><button id="select-all" class="quiet">全部显示</button><button id="reverse-stack" class="quiet"><svg class="icon" aria-hidden="true"><use href="#i-swap"/></svg>反转顺序</button></div>
     </div>
     <div id="layer-list" class="layer-list"></div>

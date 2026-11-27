@@ -593,6 +593,7 @@ function setBusy(value,kind) {
  $('busy-overlay').hidden=!value;
  $('busy-title').textContent=kind==='generate'?'正在生成你的画面':'正在拆解每一个图层';
  $('busy-detail').textContent='通常需要 30–90 秒，请保持页面打开。';
+ const staged=kind==='generate'||kind==='split';$('busy-steps').hidden=!(value&&staged);if(value&&staged)showBusyStep(kind,0);
  if(value){const start=Date.now();$('elapsed').textContent='0 秒';timer=setInterval(()=>{const elapsed=Math.floor((Date.now()-start)/1000);$('elapsed').textContent=`${elapsed} 秒`;
  if(elapsed>90)$('busy-detail').textContent='模型仍在处理较复杂的画面，我们会持续等待结果。';},1000);}
  else{clearInterval(timer);timer=null;EditorPanel.refresh();}
@@ -623,6 +624,14 @@ function confirmStale(category,refCount){
  const refs=refCount?`本次会发送 ${refCount} 张讲师肖像，但提示词里可能没有对应描述。\n`:'';
  return confirm(`${reason}\n${refs}\n点「确定」按当前提示词生成；点「取消」返回，可点提示条上的「重新拼装」。`);
 }
+/* Waiting screen: the steps follow the status the local service reports, so nothing on it is made up. */
+function busySteps(kind){return kind==='split'?['上传原图','排队','拆解图层','载入图层']:['提交请求','排队','生成中','载入结果'];}
+function stepOf(status){return status==='running'?2:status==='done'?3:1;}
+function showBusyStep(kind,step){
+ const list=$('busy-steps');
+ if(list.dataset.kind!==kind){list.dataset.kind=kind;list.replaceChildren(...busySteps(kind).map(text=>{const li=document.createElement('li');li.textContent=text;return li;}));}
+ [...list.children].forEach((li,i)=>{li.className=i<step?'done':i===step?'now':'';if(i===step)li.setAttribute('aria-current','step');else li.removeAttribute('aria-current');});
+}
 async function submit(kind) {
  if(busy)return;
  if(DEMO){notify(DEMO_MSG,true);return;}
@@ -650,7 +659,7 @@ async function submit(kind) {
   const resp=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   payload.key='';
   const created=await resp.json();if(!resp.ok)throw new Error(created.error||'任务提交失败。');
-  taskId=created.id;polling=true;
+  taskId=created.id;polling=true;showBusyStep(kind,1);
   const deadline=Date.now()+12*60*1000;
   let failures=0;
   while(Date.now()<deadline){
@@ -659,6 +668,7 @@ async function submit(kind) {
    try {const res=await fetch(`/api/jobs/${taskId}`);if(!res.ok)throw new Error('任务状态暂时不可用。');job=await res.json();failures=0;}
    catch(e){if(++failures<6)continue;throw new Error('无法连接本地服务，请检查终端服务是否仍在运行。');}
    if(job.status==='error')throw new Error(job.error);
+   showBusyStep(kind,stepOf(job.status));
    if(job.status!=='done')continue;
    if(kind==='generate'){
     await loadSource(job.images[0].url,'生成结果',{id:taskId,kind:'generate',baseUrl:`/output/${taskId}/`,

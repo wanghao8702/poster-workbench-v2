@@ -91,6 +91,12 @@ const plain=v=>JSON.parse(JSON.stringify(v));
  assert.equal(c.confirmStale('cover',3),true);
  assert.equal(asked.length,2,'没有提示条的品类不弹确认');
  console.log('提示词与生图设置不一致时，生成前确认检查通过');
+ // test_busy_steps_follow_the_real_job_status — 等待时的步骤只跟后端真实状态走，不编造百分比
+ assert.deepEqual(plainLocal(c.busySteps('generate')),['提交请求','排队','生成中','载入结果']);
+ assert.deepEqual(plainLocal(c.busySteps('split')),['上传原图','排队','拆解图层','载入图层']);
+ assert.equal(c.stepOf('queued'),1);assert.equal(c.stepOf('running'),2);assert.equal(c.stepOf('done'),3);
+ assert.equal(c.stepOf('something-new'),1,'没见过的状态按排队算，不跳步');
+ console.log('等待步骤按任务状态推进检查通过');
 
  const formCtx={TrainingPoster,document:{},localStorage:{getItem:()=>null,setItem(){}},URL:{}};
  vm.createContext(formCtx);

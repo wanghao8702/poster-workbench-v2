@@ -47,7 +47,7 @@
 .icon-sprite{position:absolute;width:0;height:0;overflow:hidden}
 .icon{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .icon-inline{width:12px;height:12px;vertical-align:-1px}
-:root{--i-close:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M6 6l12 12M18 6L6 18%22/%3E%3C/svg%3E");--i-chevron-down:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E");--i-arrow-right:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M5 12h14M13 6l6 6-6 6%22/%3E%3C/svg%3E")}
+:root{--i-check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");--i-close:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M6 6l12 12M18 6L6 18%22/%3E%3C/svg%3E");--i-chevron-down:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E");--i-arrow-right:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M5 12h14M13 6l6 6-6 6%22/%3E%3C/svg%3E")}
 html,body{height:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:var(--fs-base)/1.6 var(--sans);overflow:hidden}
 button,input,textarea{font:inherit}
@@ -262,7 +262,7 @@ kbd{display:inline-block;min-width:20px;padding:0 5px;border:1px solid var(--lin
   .brand{font-size:var(--fs-xs);letter-spacing:1px}
   .brand-mark{font-size:var(--fs-xl);margin-right:6px}
 }
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.spinner{border-color:var(--accent)}}
+@media(prefers-reduced-motion:reduce){*,::backdrop{animation:none!important;transition:none!important}.spinner{border-color:var(--accent)}}
 
 /* Generation panel: category cards, the prompt box that fills the column, ratio and generate button */
 #generation-controls{padding-top:0;min-height:0;overflow:visible;flex:1}
@@ -307,6 +307,7 @@ kbd{display:inline-block;min-width:20px;padding:0 5px;border:1px solid var(--lin
 .brief.is-empty .brief-kicker::before{background:var(--faint)}
 .brief-edit{flex:none;font-size:var(--fs-xs)}
 .brief-edit.quiet{color:var(--accent);font-weight:500}
+.brief-edit.quiet:disabled,.prompt-toggle:disabled{color:var(--disabled)}
 .brief-edit.primary{padding:6px 14px;min-height:32px}
 .brief-title{font:700 var(--fs-lg)/1.35 var(--sans);letter-spacing:.01em;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .brief.is-empty .brief-title{font-weight:500;font-size:var(--fs-md);color:var(--muted)}
@@ -461,10 +462,10 @@ kbd{display:inline-block;min-width:20px;padding:0 5px;border:1px solid var(--lin
 .editor-host{position:relative;box-shadow:0 10px 30px #15171c26;line-height:0}
 .editor-host[hidden]{display:none}
 .editor-host .canvas-container{touch-action:none;user-select:none;-webkit-user-select:none}
-.next-actions{position:absolute;right:20px;bottom:20px;display:flex;gap:10px;z-index:1;transition:bottom .18s ease-out}
-.canvas-stage:has(#status:not([hidden])) .next-actions{bottom:46px}
+/* After a picture is generated or uploaded: the next steps sit in the canvas title bar, never over the picture. */
+.next-actions{display:flex;gap:8px;align-items:center}
 .next-actions[hidden]{display:none}
-.next-actions .primary,.next-actions .secondary{box-shadow:0 10px 26px #15171c33;margin:0}
+.next-actions .primary,.next-actions .secondary{padding:6px 14px;min-height:32px;margin:0}
 .editor-toolbar{flex:none;height:46px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;padding:0 18px;border-bottom:1px solid var(--line);background:var(--white);font-size:var(--fs-xs)}
 .editor-toolbar>.tool-button,.editor-toolbar>.divider,#restore-original{flex:none}
 .editor-toolbar[hidden]{display:none}
@@ -534,3 +535,23 @@ kbd{display:inline-block;min-width:20px;padding:0 5px;border:1px solid var(--lin
 @media (max-width:520px){.mode-grid{grid-template-columns:1fr 1fr}}
 /* Touch screens: every control at least 40px. */
 @media(pointer:coarse){.quiet,.flow button,.chip,.tool-button,.ctx-select,.ctx-num,.ctx-pop>summary,.ctx-row,.provider-row label{min-height:40px}.ctx-select,.ctx-num{height:40px}.icon-btn,.ctx-toggle,.style-bar input[type=color]{width:40px;height:40px}.swatch{width:34px;height:34px;border-width:9px}.layer-row{grid-template-columns:14px 40px 54px minmax(0,1fr) 40px 40px}}
+/* Entry motion, 120–240 ms and decelerating. Only entrances: leaving is instant. The reduced-motion rule turns it all off. */
+@keyframes rise-in{from{opacity:0;transform:translateY(8px) scale(.985)}}
+@keyframes fade-in{from{opacity:0}}
+@keyframes drawer-in{from{opacity:0;transform:translateX(24px)}}
+@keyframes drop-in{from{opacity:0;transform:translateY(-4px)}}
+@keyframes lift-in{from{opacity:0;transform:translateY(4px)}}
+.settings-dialog[open]{animation:rise-in .22s cubic-bezier(.2,.8,.2,1)}
+.settings-dialog[open]::backdrop{animation:fade-in .22s ease-out}
+.asset-library:not([hidden]){animation:drawer-in .24s cubic-bezier(.2,.8,.2,1)}
+.key-panel:not([hidden]),.layer-menu:not([hidden]),.ctx-pop[open]>.ctx-pop-body{animation:drop-in .14s ease-out}
+.shortcut-help:popover-open{animation:lift-in .16s ease-out}
+/* Waiting screen steps: done ones ticked off, the current one highlighted. */
+.busy-steps{list-style:none;display:flex;align-items:center;gap:6px;margin:18px 0 2px;padding:0;font-size:var(--fs-xs);color:var(--muted)}
+.busy-steps li{display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:30px;white-space:nowrap}
+.busy-steps li+li{margin-left:20px;position:relative}
+.busy-steps li+li::before{content:"";position:absolute;right:100%;top:50%;width:18px;margin-right:4px;border-top:1px solid var(--line-strong)}
+.busy-steps li.done{color:var(--ink-2)}
+.busy-steps li.done::after{content:"";order:-1;width:12px;height:12px;background:var(--ok);-webkit-mask:var(--i-check) center/contain no-repeat;mask:var(--i-check) center/contain no-repeat}
+.busy-steps li.now{background:var(--accent-soft);color:var(--accent);font-weight:500}
+@media(max-width:600px){.busy-steps{flex-wrap:wrap;justify-content:center}.busy-steps li+li{margin-left:0}.busy-steps li+li::before{display:none}}
